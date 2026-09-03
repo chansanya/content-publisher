@@ -1,0 +1,4 @@
+# FtpPublisher 默认忽略规则之外的可选补充规则，语法与 .gitignore 一致
+# 放置在待发布文件夹根目录时自动生效
+*.log
+*.bak

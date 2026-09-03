@@ -1,0 +1,32 @@
+appId: com.ftppublisher.app
+productName: FtpPublisher
+directories:
+  output: release
+  buildResources: resources
+files:
+  - dist/**
+  - "!**/*.map"
+  - "!dist/renderer/**/*.md"
+extraFiles:
+  - from: .env.example
+    to: .env.example
+extraResources:
+  - from: resources/deploy.php
+    to: deploy.php
+compression: normal
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+    - target: portable
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  perMachine: false
+  allowToChangeInstallationDirectory: true
+  createDesktopShortcut: true
+  artifactPattern: ${productName}-${version}-${arch}-setup.${ext}
+portable:
+  artifactPattern: ${productName}-${version}-${arch}-portable.${ext}

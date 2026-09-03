@@ -1,0 +1,398 @@
+# FtpPublisher MVP 开发说明
+
+## 一、项目定位
+
+FtpPublisher 是一个面向 Windows x64 的 Electron 桌面发布工具，用于将本地完整版本发布到固定 FTP 远程目录，并支持基于本地历史版本进行完整回滚。
+
+核心发布模型固定为：
+
+```text
+选择文件夹或 ZIP
+→ 文件夹先复制快照，统一生成不可变标准 ZIP 归档
+→ FTP 上传单个 ZIP 与部署脚本
+→ 调用受密钥保护的 PHP 接口
+→ 服务器本地解压并替换站点内容
+→ 保存发布结果
+```
+
+回滚不进行远程差异恢复。用户选择任意成功历史版本后，系统重新上传对应 ZIP，并由服务端 PHP 本地解压替换站点。
+
+固定远程目录被视为 FtpPublisher 独占的部署槽位，其中任何人工添加的文件都会在下一次发布或回滚时被删除。
+
+## 二、技术栈
+
+- 桌面框架：Electron
+- 渲染进程：Vue 3、Vite、TypeScript、Element Plus
+- 状态管理：Pinia
+- 图标：Lucide
+- FTP 通信：`basic-ftp`
+- 服务端发布：PHP `ZipArchive`
+- 本地静态服务：Node.js `http`、`sirv`
+- 环境配置：`dotenv`
+- 发布记录：`electron-store`
+- ZIP 归档：`archiver`
+- ZIP 校验及解压：`adm-zip`
+- 文件过滤：`ignore`
+- 单元测试：Vitest
+- 组件测试：Vue Test Utils
+- 打包：`electron-builder`
+- 目标平台：Windows x64，输出 NSIS 安装包和便携版
+
+Electron 必须启用 `contextIsolation`，禁用 `nodeIntegration`。FTP、环境变量、文件扫描、压缩解压和发布记录读写全部在主进程完成，渲染进程只能通过 preload 暴露的白名单 API 调用。
+
+## 三、工程结构
+
+```text
+FtpPublisher/
+├─ src/
+│  ├─ main/
+│  │  ├─ index.ts
+│  │  ├─ ipc/
+│  │  │  ├─ configHandlers.ts
+│  │  │  ├─ ftpHandlers.ts
+│  │  │  └─ publishHandlers.ts
+│  │  └─ services/
+│  │     ├─ envService.ts
+│  │     ├─ ftpService.ts
+│  │     ├─ artifactService.ts
+│  │     ├─ publishService.ts
+│  │     ├─ proxyService.ts
+│  │     └─ recordService.ts
+│  ├─ preload/
+│  │  ├─ index.ts
+│  │  └─ api.ts
+│  ├─ renderer/
+│  │  ├─ pages/
+│  │  │  ├─ ConnectionPage.vue
+│  │  │  ├─ PublishPage.vue
+│  │  │  ├─ RecordsPage.vue
+│  │  │  └─ ProxyPage.vue
+│  │  ├─ components/
+│  │  ├─ stores/
+│  │  ├─ styles/
+│  │  └─ App.vue
+│  └─ shared/
+│     ├─ types.ts
+│     ├─ ipcChannels.ts
+│     └─ constants.ts
+├─ tests/
+│  ├─ unit/
+│  └─ integration/
+├─ resources/
+├─ .env.example
+├─ .ftpignore
+├─ .gitignore
+├─ package.json
+├─ electron-builder.yml
+├─ tsconfig.json
+└─ vite.config.ts
+```
+
+## 四、连接配置
+
+程序只读加载单组 `.env` 配置。开发环境读取项目根目录 `.env`，打包后读取可执行文件同级 `.env`。
+
+```dotenv
+FTP_HOST=ftp.example.com
+FTP_PORT=21
+FTP_USER=username
+FTP_PASSWORD=password
+FTP_REMOTE_ROOT=/fixed/publish/path
+FTP_SECURE=true
+FTP_TLS_REJECT_UNAUTHORIZED=true
+DEPLOY_ENDPOINT=https://www.example.com/.ftppublisher/deploy.php
+DEPLOY_TOKEN="replace-with-random-token"
+PUBLISH_RECORD_DIR=./records
+```
+
+配置规则：
+
+- `FTP_SECURE=true` 使用显式 FTPS；只有明确设为 `false` 时才使用普通 FTP。
+- 不允许显式 FTPS 连接失败后自动降级为普通 FTP。
+- 自签名证书环境可明确设置 `FTP_TLS_REJECT_UNAUTHORIZED=false`。
+- `FTP_PORT` 未填写时使用 `21`。
+- `.env` 缺失或字段不完整时禁止测试连接和发布，并列出具体缺失字段。
+- 界面只读展示连接配置，密码统一显示为 `***`。
+- 密码不得写入日志、错误详情或发布记录。
+- 必须拒绝空路径、相对路径、`.`、`..` 和 `/` 等危险远程根路径。
+- 清理远程目录时只删除 `FTP_REMOTE_ROOT` 内部内容，不删除该目录本身。
+- `DEPLOY_ENDPOINT` 指向网站公网 `.ftppublisher/deploy.php`，`DEPLOY_TOKEN` 至少 8 位。
+- 发布时自动上传 `deploy.php`、密钥配置和单个 ZIP；PHP 保留 `.ftppublisher`，替换其余站点内容。
+
+连接页提供“测试连接”按钮，并显示未连接、连接中、连接成功和连接失败状态。
+
+## 五、发布版本处理
+
+### 5.1 ZIP 输入
+
+   - 支持选择文件夹或 `.zip`，不支持 `.tar.gz`。
+   - 文件夹会先复制到临时快照目录，再统一压缩为 `artifact.zip`；ZIP 输入也会重新标准化为 `artifact.zip`。
+- ZIP 先解压到临时目录，再展示待发布内容。
+- 必须拒绝绝对路径、包含 `..` 的越界路径和 ZIP Slip 风险条目。
+- 如果 ZIP 所有内容共同位于唯一顶级目录下，则自动剥离该顶级目录。
+- 规范化后重新生成 `artifact.zip`，确保首次发布和以后回滚使用完全相同的结构。
+- 发布结束或失败后清理临时目录。
+
+### 5.2 本地版本归档
+
+```text
+records-records/
+└─ artifacts/
+   └─ releaseId/
+      ├─ artifact.zip
+      └─ manifest.json
+```
+
+`manifest.json` 至少记录版本 ID、创建时间、来源名称、来源类型、文件相对路径、文件大小、总文件数和总字节数。
+
+所有 ZIP 校验、路径规范化、本地归档和清单写入必须在上传前成功完成。本地版本默认永久保留，MVP 不提供自动清理。
+
+## 六、发布流程
+
+发布状态机：
+
+```text
+preparing
+→ uploading
+→ deploying
+→ succeeded | failed
+```
+
+执行规则：
+
+1. 验证配置及远程根路径安全性。
+2. 准备并持久化本地不可变版本。
+3. 建立 FTP 或显式 FTPS 连接。
+4. 上传 `.ftppublisher/deploy.php`、密钥配置及单个 ZIP。
+5. 调用 `DEPLOY_ENDPOINT`，由 PHP 解压到 staging。
+6. PHP 保留 `.ftppublisher`，清理其余站点内容并移动新版本文件。
+7. 服务端返回成功后保存发布记录；任意步骤失败则保存失败记录。
+
+本地发布支持文件夹和 ZIP，但远程传输统一只上传单个 ZIP；不支持断点续传或中途取消。
+
+任意文件上传失败时立即停止任务，不自动恢复上一版本。远程目录可能处于不完整状态，界面必须明确提示用户，并引导用户从发布记录中手动选择历史成功版本进行回滚。
+
+程序启动时，将遗留在 `preparing`、`clearing` 或 `uploading` 状态的任务标记为 `interrupted`。
+
+## 七、上传进度
+
+主进程根据版本清单预先计算总文件数和总字节数，通过节流后的 IPC 事件向渲染进程推送真实进度。
+
+```ts
+interface UploadProgress {
+  releaseId: string
+  phase: 'clearing' | 'uploading'
+  currentFile: string
+  currentFileBytes: number
+  currentFileTotalBytes: number
+  uploadedBytes: number
+  totalBytes: number
+  completedFiles: number
+  totalFiles: number
+  percentage: number
+  bytesPerSecond: number
+  estimatedSeconds: number | null
+}
+```
+
+发布页必须展示：
+
+- 总上传进度条
+- 当前文件进度条
+- 当前文件相对路径
+- 已上传字节数和总字节数
+- 已完成文件数和总文件数
+- 实时上传速度
+- 预计剩余时间
+
+进度必须单调递增。只有远程版本完整上传成功后才能显示 `100%`。进度事件应限制发送频率，避免 IPC 高频通信拖慢界面。
+
+## 八、发布记录与回滚
+
+核心类型：
+
+```ts
+type PublishStatus =
+  | 'preparing'
+  | 'clearing'
+  | 'uploading'
+  | 'succeeded'
+  | 'failed'
+  | 'interrupted'
+
+type PublishKind = 'publish' | 'rollback'
+
+interface AppError {
+  code: string
+  message: string
+  detail?: string
+}
+
+interface PublishRecord {
+  id: string
+  kind: PublishKind
+  artifactId: string
+  rollbackFromId?: string
+  sourceName: string
+  sourceType: 'directory' | 'zip'
+  remoteRoot: string
+  status: PublishStatus
+  startedAt: string
+  finishedAt?: string
+  durationMs?: number
+  totalFiles: number
+  totalBytes: number
+  uploadedFiles: number
+  uploadedBytes: number
+  error?: AppError
+}
+```
+
+- `electron-store` 保存记录索引和任务状态。
+- 文件明细保存在版本目录的 `manifest.json` 中，避免把大量文件节点塞进单个记录对象。
+- 记录页展示类型、状态、时间、耗时、来源、文件数、容量和错误详情。
+- 回滚只允许选择状态为 `succeeded` 且本地 `artifact.zip` 仍然存在的历史版本。
+- 回滚复用目标版本的归档文件，不重复复制 ZIP。
+- 每次回滚都生成一条新的 `rollback` 类型记录，并引用目标版本。
+- 本地版本缺失或损坏时禁止回滚，不得先清空远程目录。
+
+回滚流程：
+
+```text
+选择成功历史版本
+→ 校验本地 artifact.zip 和 manifest.json
+→ FTP 上传单个历史 ZIP
+→ 调用服务端 PHP 解压替换站点
+→ 生成新的回滚记录
+```
+
+## 九、IPC 接口
+
+preload 仅暴露以下白名单能力：
+
+```text
+config:get
+ftp:testConnection
+ftp:listDir
+ftp:delete
+ftp:download
+ftp:uploadFiles
+publish:prepare
+publish:execute
+publish:rollback
+publish:republish
+publish:getRecords
+publish:getRecord
+publish:progress
+proxy:getStatus
+proxy:saveSettings
+proxy:start
+proxy:stop
+proxy:applyArtifact
+proxy:openSite
+proxy:openRoot
+```
+
+所有请求统一返回：
+
+```ts
+type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: AppError }
+```
+
+主进程必须验证所有 IPC 参数，渲染进程传入的路径、版本 ID 和状态均不可直接信任。
+
+## 十、界面设计
+
+主界面采用左侧导航和右侧内容区。远程文件入口仅在测试连接成功后显示：
+
+1. 连接状态
+   - 脱敏配置预览
+   - FTP/FTPS 协议状态
+   - 测试连接按钮
+   - 明确的连接错误信息
+
+2. 远程文件
+   - 浏览固定远程根目录及其子目录
+   - 显示文件类型、大小和修改时间
+   - 通过系统“另存为”窗口下载单个文件
+   - 在当前远程目录选择并上传一个或多个本地文件，同名文件直接覆盖
+   - 删除单个文件或递归删除单个目录
+   - 禁止删除 `FTP_REMOTE_ROOT` 本身
+
+3. 本地发布
+   - 选择文件夹或 ZIP
+   - 统一以 ZIP 内容预览
+   - 服务端替换风险确认
+   - 发布执行状态
+   - 单 ZIP 上传进度和服务器解压状态
+   - 成功或失败结果
+
+4. 发布记录
+   - 历史记录表格
+   - 记录详情抽屉
+   - 错误详情
+   - 对任意成功版本执行回滚
+   - 失败或中断记录复用已有 ZIP 再次执行完整发布
+   - 将任意成功版本应用到本地代理
+
+5. 本地代理
+   - 开发环境使用项目根目录 `.web`，打包后使用可执行文件同级 `.web`
+   - 默认端口 `4173`，允许在界面修改并保存
+   - 手动启动和停止，监听 `0.0.0.0`
+   - 展示 localhost 与局域网 IPv4 地址
+   - 支持普通静态模式和可选 SPA 回退
+   - 提供打开站点、打开 `.web` 目录和最近应用版本状态
+   - `.web` 只有一个带 `index.html` 的子目录时，自动将该子目录作为站点根目录
+
+历史版本应用到代理时，必须保留原 `artifact.zip`，先校验并解压到临时目录；代理运行中则自动停服，清空 `.web` 后复制目标内容，并恢复原运行状态。本地应用不生成 FTP 发布记录，只保存 `lastAppliedArtifactId`。
+
+全局日志面板展示连接、版本准备、远程清理、上传和回滚过程。所有图标统一使用 Lucide，禁止使用表情符号。
+
+## 十一、测试与验收
+
+- `.env` 缺失、字段不完整或端口非法时正确阻止连接。
+- 普通 FTP 与显式 FTPS 配置分别建立正确连接。
+- 密码不会出现在日志、IPC 错误或发布记录中。
+- 危险远程根目录不会执行清空。
+- ZIP 唯一顶级目录被正确剥离。
+- 恶意 ZIP 路径和损坏 ZIP 被拒绝。
+- 本地版本归档失败时不会连接或清理远程目录。
+- 发布调用顺序严格为：校验 ZIP、上传部署脚本、上传单个 ZIP、调用 PHP 解压替换。
+- 任意文件失败后立即停止，任务记录为 `failed`，不自动恢复。
+- 上传进度包含文件、字节、速度和预计剩余时间，并保持单调。
+- 服务端解压发布阶段具有明确状态和日志。
+- 任意成功版本均可回滚，且回滚生成新记录。
+- 失败或中断记录点击再次发布时只加载归档并跳转本地发布页，以 ZIP 输入呈现；发布页确认执行后原地更新当前记录，不生成新记录。
+- 本地版本缺失或校验失败时禁止回滚。
+- 异常退出后的进行中任务在重启后标记为 `interrupted`。
+- FTP 服务单元测试使用 mock，不依赖真实生产服务器。
+- Windows x64 安装版和便携版完成启动、连接、发布、失败及回滚冒烟测试。
+- 本地代理设置可持久化，端口占用时返回明确错误。
+- 应用历史版本会清空旧代理内容、保留原 ZIP，并更新最近应用版本。
+- 连接成功后可列出固定远程目录，删除行为不能逃逸 `FTP_REMOTE_ROOT`。
+
+## 十二、MVP 范围外功能
+
+- 增量同步和远程文件差异比较
+- 远程文件下载备份
+- 自动故障恢复
+- 上传重试、并发和断点续传
+- 上传中途取消
+- `.tar.gz` 发布
+- 多 FTP 配置
+- 界面编辑或保存连接配置
+- CSV 导出
+
+以上功能不得混入本地发布主链路，保持“单 ZIP 上传、服务端解压、历史 ZIP 回滚”的发布模型。
+
+## 十三、交付顺序
+
+1. 初始化 Electron、Vue 3、TypeScript 工程及构建配置。
+2. 完成共享类型、配置加载和 preload 安全桥接。
+3. 完成 ZIP 规范化和本地归档服务。
+4. 完成 FTP/FTPS 单 ZIP 上传、PHP 部署脚本和服务器解压状态。
+5. 完成发布记录、异常中断标记和历史版本回滚。
+6. 完成连接页、发布页、进度展示和发布记录页。
+7. 输出 `.env.example`、运行说明、NSIS 安装包和便携版。
