@@ -42,10 +42,11 @@ portable:
   # 单文件版专属名（解锁 win 级兜底，让 zip 独享）
   artifactName: ${productName}-${version}-${arch}-portable.${ext}
 mac:
-  # M 芯片单架构；identity: null 显式跳过签名（无 Apple 开发者账号，首次打开需右键放行）
+  # identity: null 显式跳过签名（无 Apple 开发者账号，首次打开需右键放行）
   identity: null
   artifactName: ${productName}-${version}-${arch}.${ext}
   target:
     - target: dmg
       arch:
         - arm64
+        - x64

@@ -1,0 +1,85 @@
+# 全平台打包：手动触发，Windows 三件套 + macOS 双架构（M 芯片 / Intel）
+# Windows 在 GitHub 管理员权限 runner 上可正常解压 winCodeSign，但 yml 全局 signAndEditExecutable:false 已跳过该步骤
+name: build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      # 可选：配置 BUILD_ENV secret（完整 .env 内容）后，打出的包首次启动按它生成出厂配置
+      - name: 注入出厂 .env（可选）
+        shell: pwsh
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: |
+          if ($env:BUILD_ENV) {
+            [System.IO.File]::WriteAllText("$pwd\.env", $env:BUILD_ENV)
+            Write-Host "已注入出厂 .env"
+          } else {
+            Write-Host "未配置 BUILD_ENV secret，跳过"
+          }
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npx electron-builder --win --x64 --publish never
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: win-x64
+          path: |
+            release/*-setup.exe
+            release/*.zip
+            release/*-portable.exe
+          if-no-files-found: error
+
+  build-mac:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: macos-13 # Intel runner，原生编译 x64
+            arch: x64
+          - os: macos-14 # M1 runner，原生编译 arm64
+            arch: arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 注入出厂 .env（可选）
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: |
+          if [ -n "$BUILD_ENV" ]; then
+            printf '%s\n' "$BUILD_ENV" > .env
+            echo "已注入出厂 .env"
+          else
+            echo "未配置 BUILD_ENV secret，跳过"
+          fi
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npx electron-builder --mac --${{ matrix.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-${{ matrix.arch }}
+          path: release/*.dmg
+          if-no-files-found: error
