@@ -78,6 +78,30 @@ export function registerConfigHandlers(): void {
     }
   })
 
+  ipcMain.handle(IPC_CHANNELS.ConfigOpenWeb, async (): Promise<ApiResult<true>> => {
+    try {
+      const result = loadEnvConfig(resolveBaseDir())
+      if (!result.ok) return { ok: false, error: result.error }
+      const webUrl = result.data.webUrl
+      if (!webUrl) {
+        return { ok: false, error: { code: 'WEB_URL_NOT_CONFIGURED', message: '未配置 WEB_URL' } }
+      }
+      let parsed: URL
+      try {
+        parsed = new URL(webUrl)
+      } catch {
+        return { ok: false, error: { code: 'WEB_URL_INVALID', message: 'WEB_URL 必须是有效的 HTTP 或 HTTPS 地址' } }
+      }
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+        return { ok: false, error: { code: 'WEB_URL_INVALID', message: 'WEB_URL 必须是 HTTP 或 HTTPS 地址' } }
+      }
+      await shell.openExternal(parsed.toString())
+      return { ok: true, data: true }
+    } catch (err) {
+      return { ok: false, error: toAppError(err) }
+    }
+  })
+
   // 应用版本号：来自主进程 package.json（app.getVersion），渲染进程不硬编码
   ipcMain.handle(IPC_CHANNELS.AppGetVersion, (): ApiResult<string> => {
     return { ok: true, data: app.getVersion() }

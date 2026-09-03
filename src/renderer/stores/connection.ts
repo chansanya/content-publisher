@@ -96,6 +96,11 @@ export const useConnectionStore = defineStore('connection', () => {
     if (!result.ok) ElMessage.error(result.error.message)
   }
 
+  async function openWeb(): Promise<void> {
+    const result = await window.ftpApi.openWeb()
+    if (!result.ok) ElMessage.error(result.error.message)
+  }
+
   async function restartApp(): Promise<void> {
     const result = await window.ftpApi.restartApp()
     if (!result.ok) ElMessage.error(result.error.message)
@@ -116,6 +121,7 @@ export const useConnectionStore = defineStore('connection', () => {
     openRecordDir,
     openLogDir,
     openEnvFile,
+    openWeb,
     restartApp
   }
 })

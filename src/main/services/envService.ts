@@ -16,6 +16,7 @@ export interface ResolvedConfig {
   envPath: string
   deployEndpoint: string
   deployToken: string
+  webUrl: string
 }
 
 export type EnvLoadResult = ApiResult<ResolvedConfig>
@@ -96,7 +97,8 @@ export function parseEnvFields(raw: Record<string, string>, baseDir: string): En
       recordDir,
       envPath: path.join(baseDir, '.env'),
       deployEndpoint: (raw.DEPLOY_ENDPOINT ?? '').trim(),
-      deployToken: raw.DEPLOY_TOKEN ?? ''
+      deployToken: raw.DEPLOY_TOKEN ?? '',
+      webUrl: (raw.WEB_URL ?? '').trim()
     }
   }
 }
@@ -141,7 +143,8 @@ export function toConfigView(config: ResolvedConfig): FtpConfigView {
     recordDir: config.recordDir,
     envPath: config.envPath,
     deployEndpoint: config.deployEndpoint,
-    deployTokenConfigured: config.deployToken.length >= 8
+    deployTokenConfigured: config.deployToken.length >= 8,
+    webUrl: config.webUrl
   }
 }
 

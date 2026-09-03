@@ -44,6 +44,7 @@ FTP_SECURE=true
 FTP_TLS_REJECT_UNAUTHORIZED=true
 DEPLOY_ENDPOINT=https://www.example.com/.ftppublisher/deploy.php
 DEPLOY_TOKEN="replace-with-random-token"
+WEB_URL=https://www.example.com/
 PUBLISH_RECORD_DIR=./historical
 ```
 
@@ -56,6 +57,7 @@ PUBLISH_RECORD_DIR=./historical
 - 远程根路径必须是安全的绝对路径（拒绝空、相对路径、`.`、`..`、`/`）。
 - `DEPLOY_ENDPOINT` 必须指向网站公网可访问的 `.ftppublisher/deploy.php`。
 - `DEPLOY_TOKEN` 至少 8 位；包含 `#` 时必须用引号包裹。部署接口和桌面端必须使用相同密钥。
+- `WEB_URL` 可选，填写真实站点的 HTTP/HTTPS 地址；连接成功后可从连接状态和发布成功结果直接打开。
 - 密码只读展示为 `***`，不会出现在日志、错误详情或发布记录中。
 
 ## 常用命令

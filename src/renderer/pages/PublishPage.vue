@@ -473,6 +473,11 @@ async function requestClearSummary(): Promise<void> {
           </div>
         </div>
         <span style="flex: 1" />
+        <el-tooltip v-if="connection.config?.webUrl" content="打开真实站点" placement="top">
+          <el-button text aria-label="打开真实站点" @click="connection.openWeb()">
+            <template #icon><Globe2 :size="15" /></template>
+          </el-button>
+        </el-tooltip>
         <el-button @click="ui.go('records')">
           <template #icon><History :size="15" /></template>
           查看发布记录

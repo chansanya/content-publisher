@@ -30,6 +30,7 @@ export interface FtpApi {
   openRecordDir(): Promise<ApiResult<true>>
   openLogDir(): Promise<ApiResult<true>>
   openEnvFile(): Promise<ApiResult<true>>
+  openWeb(): Promise<ApiResult<true>>
   restartApp(): Promise<ApiResult<true>>
   getAppVersion(): Promise<ApiResult<string>>
   testConnection(): Promise<ApiResult<ConnectionTestResult>>

@@ -41,6 +41,7 @@ export interface FtpConfigView {
   envPath: string
   deployEndpoint: string
   deployTokenConfigured: boolean
+  webUrl?: string
 }
 
 export interface ConnectionTestResult {

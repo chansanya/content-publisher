@@ -15,6 +15,7 @@ const api: FtpApi = {
   openRecordDir: () => invoke(IPC_CHANNELS.ConfigOpenRecordDir),
   openLogDir: () => invoke(IPC_CHANNELS.ConfigOpenLogDir),
   openEnvFile: () => invoke(IPC_CHANNELS.ConfigOpenEnvFile),
+  openWeb: () => invoke(IPC_CHANNELS.ConfigOpenWeb),
   restartApp: () => invoke(IPC_CHANNELS.AppRestart),
   getAppVersion: () => invoke(IPC_CHANNELS.AppGetVersion),
   testConnection: () => invoke(IPC_CHANNELS.FtpTestConnection),

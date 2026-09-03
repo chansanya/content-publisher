@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CircleCheck, Loader, Plug } from 'lucide-vue-next'
+import { CircleCheck, ExternalLink, Loader, Plug } from 'lucide-vue-next'
 import { useConnectionStore } from '@renderer/stores/connection'
 
 const connection = useConnectionStore()
@@ -40,6 +40,12 @@ const host = computed(() => connection.config?.host ?? '--')
         <Plug v-if="connection.testState !== 'testing'" :size="16" />
       </template>
     </el-button>
+
+    <el-tooltip v-if="connection.testState === 'success' && connection.config?.webUrl" content="打开真实站点" placement="top">
+      <el-button text title="打开真实站点" aria-label="打开真实站点" @click="connection.openWeb()">
+        <template #icon><ExternalLink :size="16" /></template>
+      </el-button>
+    </el-tooltip>
   </div>
 </template>
 

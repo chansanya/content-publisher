@@ -102,6 +102,7 @@ FTP_SECURE=true
 FTP_TLS_REJECT_UNAUTHORIZED=true
 DEPLOY_ENDPOINT=https://www.example.com/.ftppublisher/deploy.php
 DEPLOY_TOKEN="replace-with-random-token"
+WEB_URL=https://www.example.com/
 PUBLISH_RECORD_DIR=./records
 ```
 
@@ -117,6 +118,7 @@ PUBLISH_RECORD_DIR=./records
 - 必须拒绝空路径、相对路径、`.`、`..` 和 `/` 等危险远程根路径。
 - 清理远程目录时只删除 `FTP_REMOTE_ROOT` 内部内容，不删除该目录本身。
 - `DEPLOY_ENDPOINT` 指向网站公网 `.ftppublisher/deploy.php`，`DEPLOY_TOKEN` 至少 8 位。
+- `WEB_URL` 可选，填写真实站点的 HTTP/HTTPS 地址；连接成功后，连接状态和发布成功结果提供打开入口。
 - 发布时自动上传 `deploy.php`、密钥配置和单个 ZIP；PHP 保留 `.ftppublisher`，替换其余站点内容。
 
 连接页提供“测试连接”按钮，并显示未连接、连接中、连接成功和连接失败状态。
