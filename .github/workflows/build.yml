@@ -86,7 +86,7 @@ jobs:
 
   release:
     needs: [build-win, build-mac]
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
