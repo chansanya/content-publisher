@@ -120,13 +120,3 @@ src/
 └─ shared/      跨进程类型、IPC 通道、常量
 tests/unit/     Vitest 单元测试
 ```
-
-## 安全与 IPC
-
-preload 仅暴露固定白名单通道。除原有 FTP/发布接口外，本地代理增加 `proxy:getStatus`、`proxy:saveSettings`、`proxy:start`、`proxy:stop`、`proxy:applyArtifact`、`proxy:openSite`、`proxy:openRoot`。所有请求统一返回 `ApiResult<T>`，渲染进程不能直接访问 HTTP Server、文件系统或历史归档路径。
-
-服务端 `.ftppublisher/deploy.php` 仅接受 POST，并使用 `X-FtpPublisher-Token` 校验密钥。ZIP 会先解压到 staging，成功后才替换站点目录；部署脚本自身不会被清理。
-
-## MVP 边界
-
-不支持：增量同步、远程备份、自动故障恢复、断点续传、中途取消、`.tar.gz`、多 FTP 配置、界面编辑配置、CSV 导出。远程文件页的手工文件上传与本地完整版本发布相互独立。
