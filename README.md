@@ -63,12 +63,12 @@ PUBLISH_RECORD_DIR=./historical
 ## 常用命令
 
 ```bash
-npm run dev          # 开发调试
-npm test             # 单元测试（Vitest，FTP 全部使用 mock）
-npm run typecheck    # vue-tsc 类型检查
-npm run build        # 构建 main / preload / renderer
-npm run dist:win     # 打包 Windows x64 三件套（输出 release/）
-npm run dist:zip     # 仅打包 Windows x64 解压 ZIP 版（日常迭代更快）
+npm run dev           # 本地开发调试
+npm run build         # 构建 main / preload / renderer
+npm run dist:win      # 打包 Windows x64 三件套（输出 release/）
+npm run dist:zip      # 仅打包 Windows x64 解压 ZIP 版
+npm run release       # 手动触发 GitHub 全平台构建与发布
+npm run release:watch # 查看 GitHub Actions 构建状态
 ```
 
 `dist:win` 的 Windows 输出包括：
@@ -131,5 +131,4 @@ src/
 ├─ preload/     contextBridge 白名单桥接（contextIsolation 开启，nodeIntegration 关闭）
 ├─ renderer/    Vue 3 + Pinia + Element Plus（连接 / 远程文件 / 发布 / 记录 / 代理页面 + 全局日志）
 └─ shared/      跨进程类型、IPC 通道、常量
-tests/unit/     Vitest 单元测试
 ```

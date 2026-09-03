@@ -3,24 +3,26 @@ import { spawn, spawnSync } from 'node:child_process'
 import { setTimeout as delay } from 'node:timers/promises'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
+import { createRequire } from 'node:module'
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
-const shell = process.platform === 'win32'
-const npm = shell ? 'npm.cmd' : 'npm'
+const require = createRequire(import.meta.url)
+const viteCli = path.join(root, 'node_modules', 'vite', 'bin', 'vite.js')
+const electron = require('electron')
 
-function runSync(script) {
-  const result = spawnSync(npm, ['run', script], { cwd: root, stdio: 'inherit', shell })
+function runVite(args) {
+  const result = spawnSync(process.execPath, [viteCli, ...args], { cwd: root, stdio: 'inherit' })
   if (result.status !== 0) {
     process.exitCode = 1
     process.exit(result.status ?? 1)
   }
 }
 
-runSync('build:main')
-runSync('build:preload')
+runVite(['build', '-c', 'vite.main.config.ts'])
+runVite(['build', '-c', 'vite.preload.config.ts'])
 
 const devUrl = 'http://localhost:5173'
-const renderer = spawn(npm, ['run', 'dev:renderer'], { cwd: root, stdio: 'inherit', shell })
+const renderer = spawn(process.execPath, [viteCli], { cwd: root, stdio: 'inherit' })
 
 async function waitFor(url, attempts = 90) {
   for (let i = 0; i < attempts; i++) {
@@ -42,14 +44,13 @@ if (!up) {
   process.exit(1)
 }
 
-const electron = spawn(npm, ['run', 'start:electron'], {
+const app = spawn(electron, ['.'], {
   cwd: root,
   stdio: 'inherit',
-  shell,
   env: { ...process.env, VITE_DEV_SERVER_URL: devUrl }
 })
 
-electron.on('exit', (code) => {
+app.on('exit', (code) => {
   renderer.kill()
   process.exit(code ?? 0)
 })

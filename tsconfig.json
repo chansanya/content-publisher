@@ -21,6 +21,6 @@
       "@renderer/*": ["src/renderer/*"]
     }
   },
-  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "tests/**/*.ts", "vite.config.ts", "vite.main.config.ts", "vite.preload.config.ts", "vitest.config.ts"],
+  "include": ["src/**/*.ts", "src/**/*.d.ts", "src/**/*.vue", "vite.config.ts", "vite.main.config.ts", "vite.preload.config.ts"],
   "exclude": ["node_modules", "dist", "release"]
 }
