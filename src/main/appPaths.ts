@@ -4,11 +4,13 @@ import { app } from 'electron'
 /**
  * .env 查找基准目录：
  * - 开发环境：项目根目录（app.getAppPath()）
- * - NSIS 安装版：安装目录（exe 同级）
- * - 便携版：electron-builder 通过 PORTABLE_EXECUTABLE_DIR 指向 portable exe 真实所在目录
+ * - Windows 安装版：安装目录（exe 同级）
+ * - Windows 便携版：electron-builder 通过 PORTABLE_EXECUTABLE_DIR 指向 portable exe 真实所在目录
+ * - macOS：.app bundle 内只读，配置与数据（.env/logs/records/.web）放 userData
  */
 export function resolveBaseDir(): string {
   if (!app.isPackaged) return app.getAppPath()
+  if (process.platform === 'darwin') return app.getPath('userData')
   return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath)
 }
 

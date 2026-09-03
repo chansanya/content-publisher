@@ -1,0 +1,43 @@
+# macOS Apple Silicon (arm64) 打包：手动触发，产物挂在 Actions Artifacts
+# 本地 Windows 无法交叉编译 mac 包，依赖 GitHub 的 M1 runner
+name: build-mac
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build-mac:
+    runs-on: macos-14 # M1 芯片，产物为 arm64
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      # 可选：在仓库 Settings → Secrets and variables → Actions 配置 BUILD_ENV（完整 .env 文件内容），
+      # 打出的包首次启动会按它生成出厂配置；不配置则打出的包无出厂 .env，使用时需自行放置
+      - name: 注入出厂 .env（可选）
+        env:
+          BUILD_ENV: ${{ secrets.BUILD_ENV }}
+        run: |
+          if [ -n "$BUILD_ENV" ]; then
+            printf '%s\n' "$BUILD_ENV" > .env
+            echo "已注入出厂 .env"
+          else
+            echo "未配置 BUILD_ENV secret，跳过"
+          fi
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - run: npx electron-builder --mac --arm64
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mac-arm64-dmg
+          path: release/*.dmg
+          if-no-files-found: error
