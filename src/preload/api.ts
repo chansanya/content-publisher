@@ -31,6 +31,7 @@ export interface FtpApi {
   openLogDir(): Promise<ApiResult<true>>
   openEnvFile(): Promise<ApiResult<true>>
   restartApp(): Promise<ApiResult<true>>
+  getAppVersion(): Promise<ApiResult<string>>
   testConnection(): Promise<ApiResult<ConnectionTestResult>>
   listRemoteDir(relativePath?: string): Promise<ApiResult<RemoteDirectoryListing>>
   deleteRemoteEntry(relativePath: string): Promise<ApiResult<RemoteDeleteResult>>

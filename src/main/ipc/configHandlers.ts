@@ -78,7 +78,11 @@ export function registerConfigHandlers(): void {
     }
   })
 
-  // 重启软件：重启后启动流程会重新加载环境变量
+  // 应用版本号：来自主进程 package.json（app.getVersion），渲染进程不硬编码
+  ipcMain.handle(IPC_CHANNELS.AppGetVersion, (): ApiResult<string> => {
+    return { ok: true, data: app.getVersion() }
+  })
+
   ipcMain.handle(IPC_CHANNELS.AppRestart, (): ApiResult<true> => {
     try {
       app.relaunch()

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { CloudUpload, FolderTree, Globe2, History, HardDriveUpload, Replace, Settings } from 'lucide-vue-next'
 import { useUiStore } from '@renderer/stores/ui'
 import { useConnectionStore } from '@renderer/stores/connection'
@@ -26,6 +26,10 @@ watch(
     if (state !== 'success' && ui.currentPage === 'remote') ui.go('publish')
   }
 )
+
+onMounted(() => {
+  void ui.loadVersion()
+})
 </script>
 
 <template>
@@ -35,8 +39,8 @@ watch(
         <HardDriveUpload :size="20" :stroke-width="2.2" />
       </div>
       <div>
-        <div class="brand-name">FtpPublisher</div>
-        <div class="brand-sub">Fixed Root Deploy</div>
+        <div class="brand-name">内容发布工具</div>
+        <div class="brand-sub">Content Publisher</div>
       </div>
     </div>
 
@@ -60,6 +64,6 @@ watch(
       <span>设置</span>
     </button>
 
-    <div class="nav-foot">v1.0.0 · win-x64</div>
+    <div class="nav-foot">v{{ ui.appVersion || '…' }}</div>
   </aside>
 </template>

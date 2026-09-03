@@ -16,6 +16,7 @@ const api: FtpApi = {
   openLogDir: () => invoke(IPC_CHANNELS.ConfigOpenLogDir),
   openEnvFile: () => invoke(IPC_CHANNELS.ConfigOpenEnvFile),
   restartApp: () => invoke(IPC_CHANNELS.AppRestart),
+  getAppVersion: () => invoke(IPC_CHANNELS.AppGetVersion),
   testConnection: () => invoke(IPC_CHANNELS.FtpTestConnection),
   listRemoteDir: (relativePath = '') => invoke(IPC_CHANNELS.FtpListDir, { relativePath }),
   deleteRemoteEntry: (relativePath: string) => invoke(IPC_CHANNELS.FtpDelete, { relativePath }),

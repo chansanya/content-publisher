@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
-import { ChevronDown, ChevronUp, Terminal, Trash2 } from 'lucide-vue-next'
+import { ElMessage } from 'element-plus'
+import { ChevronDown, ChevronUp, FolderOpen, Terminal, Trash2 } from 'lucide-vue-next'
 import { useLogsStore } from '@renderer/stores/logs'
 
 const HEIGHT_KEY = 'fp-log-panel-height'
@@ -9,6 +10,11 @@ const logs = useLogsStore()
 const collapsed = ref(true)
 const listRef = ref<HTMLElement | null>(null)
 const count = computed(() => logs.entries.length)
+
+async function openLogDir(): Promise<void> {
+  const result = await window.ftpApi.openLogDir()
+  if (!result.ok) ElMessage.error(result.error.message)
+}
 
 const height = ref(clampHeight(Number(localStorage.getItem(HEIGHT_KEY)) || 148))
 const dragging = ref(false)
@@ -80,6 +86,14 @@ watch(
       <span class="title">全局日志</span>
       <span class="mono" style="color: var(--fp-text-faint); font-size: 11px">{{ count }}</span>
       <span style="flex: 1" />
+      <button
+        class="el-button el-button--small el-button--primary"
+        style="gap: 5px"
+        @click.stop="openLogDir()"
+      >
+        <FolderOpen :size="13" />
+        <span style="font-size: 12px">日志目录</span>
+      </button>
       <button
         class="el-button el-button--small is-text"
         style="padding: 2px 6px"

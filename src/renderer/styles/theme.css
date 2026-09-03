@@ -619,6 +619,7 @@ html.dark {
 
 .source-btn .source-copy {
   min-width: 0;
+  text-align: left;
 }
 
 .source-btn .scan-status {
@@ -654,7 +655,7 @@ html.dark {
 }
 
 .source-btn .hint {
-  margin-left: 10px;
+  display: block;
   font-size: 12px;
   font-weight: 500;
   color: var(--fp-text-faint);

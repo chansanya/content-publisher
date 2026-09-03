@@ -236,9 +236,9 @@ async function requestClearSummary(): Promise<void> {
       <ServerCog :size="15" class="runtime-bar-icon" />
       <span class="runtime-bar-hint">
         <span v-if="syncingRuntime || cleaningIncoming" class="mono">{{ syncStepText }}</span>
-        <template v-else>部署脚本与上传缓存维护</template>
+        <template v-else>部署脚本维护</template>
       </span>
-      <el-tooltip content="同步 deploy.php / config.php 到服务器" placement="top">
+      <el-tooltip content="同步到服务器" placement="top">
         <el-button
           size="small"
           text
@@ -250,7 +250,7 @@ async function requestClearSummary(): Promise<void> {
           <template #icon><RefreshCw :size="16" /></template>
         </el-button>
       </el-tooltip>
-      <el-tooltip content="清理 .ftppublisher/incoming/ 部署失败残留的 ZIP" placement="top">
+      <el-tooltip content="清理远程残留ZIP" placement="top">
         <el-button
           size="small"
           text
@@ -297,7 +297,7 @@ async function requestClearSummary(): Promise<void> {
               <FileArchive :size="26" style="color: var(--fp-accent-2); flex-shrink: 0" />
               <span class="source-copy">
                 选择 ZIP
-                <span class="hint">上传单个压缩包 · 服务器本地解压发布</span>
+                <span class="hint">上传单个压缩包</span>
               </span>
               <span v-if="publish.scanning === 'zip'" class="scan-status">
                 <LoaderCircle :size="14" class="scan-spinner" />
@@ -316,7 +316,7 @@ async function requestClearSummary(): Promise<void> {
               <FolderOpen :size="26" style="color: var(--fp-accent); flex-shrink: 0" />
               <span class="source-copy">
                 选择文件夹
-                <span class="hint">自动打包为 ZIP 上传 · 支持 .ftpignore 过滤</span>
+                <span class="hint">自动打包为 ZIP 上传</span>
               </span>
               <span v-if="publish.scanning === 'directory'" class="scan-status">
                 <LoaderCircle :size="14" class="scan-spinner" />
@@ -335,7 +335,7 @@ async function requestClearSummary(): Promise<void> {
               <Globe2 :size="26" style="color: var(--fp-success); flex-shrink: 0" />
               <span class="source-copy">
                 发布本地代理
-                <span class="hint">直接压缩 .web 当前内容上传 · 免解压免快照</span>
+                <span class="hint">压缩当前代理内容上传</span>
               </span>
               <span v-if="publish.scanning === 'proxy'" class="scan-status">
                 <LoaderCircle :size="14" class="scan-spinner" />

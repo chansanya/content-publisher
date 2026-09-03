@@ -1,5 +1,5 @@
 appId: com.ftppublisher.app
-productName: FtpPublisher
+productName: 内容发布工具
 directories:
   output: release
   buildResources: resources
@@ -15,8 +15,16 @@ extraResources:
     to: deploy.php
 compression: normal
 win:
+  # 跳过 rcedit 写版本信息/签名：免下载 winCodeSign（其内置 macOS symlink 在非管理员/非开发者模式下解压必失败）
+  # 代价：exe 属性页显示 Electron 默认版本信息，不影响功能
+  signAndEditExecutable: false
+  # 平台级兜底名：无专属节的 target 使用（当前仅 zip 吃这口）
+  artifactName: ${productName}-${version}-${arch}.${ext}
   target:
     - target: nsis
+      arch:
+        - x64
+    - target: zip
       arch:
         - x64
     - target: portable
@@ -27,6 +35,9 @@ nsis:
   perMachine: false
   allowToChangeInstallationDirectory: true
   createDesktopShortcut: true
-  artifactPattern: ${productName}-${version}-${arch}-setup.${ext}
+  # 安装版专属名
+  artifactName: ${productName}-${version}-${arch}-setup.${ext}
+  differentialPackage: false
 portable:
-  artifactPattern: ${productName}-${version}-${arch}-portable.${ext}
+  # 单文件版专属名（解锁 win 级兜底，让 zip 独享）
+  artifactName: ${productName}-${version}-${arch}-portable.${ext}

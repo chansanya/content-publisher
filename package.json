@@ -1,9 +1,9 @@
 {
   "name": "ftp-publisher",
   "version": "1.0.0",
-  "description": "FtpPublisher - Windows x64 FTP 完整版本发布与回滚工具",
+  "description": "内容发布工具 - Windows x64 FTP 完整版本发布与回滚工具",
   "main": "dist/main/index.js",
-  "author": "FtpPublisher",
+  "author": "lhy",
   "license": "MIT",
   "private": true,
   "engines": {
@@ -20,7 +20,8 @@
     "typecheck": "vue-tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "dist:win": "npm run build && electron-builder --win --x64"
+    "dist:win": "npm run build && electron-builder --win --x64",
+    "dist:zip": "npm run build && electron-builder --win zip --x64"
   },
   "dependencies": {
     "adm-zip": "^0.5.16",

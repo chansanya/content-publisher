@@ -24,7 +24,7 @@ export type ApiResult<T> =
 export interface OperationLogEvent {
   /** debug 仅落日志文件，终端与界面只显示 info 及以上 */
   level: 'debug' | 'info' | 'success' | 'warn' | 'error'
-  scope: 'publish' | 'remote'
+  scope: 'publish' | 'remote' | 'env'
   message: string
 }
 

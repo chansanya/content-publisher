@@ -7,6 +7,7 @@ export const IPC_CHANNELS = {
   ConfigOpenLogDir: 'config:openLogDir',
   ConfigOpenEnvFile: 'config:openEnvFile',
   AppRestart: 'app:restart',
+  AppGetVersion: 'app:getVersion',
   FtpTestConnection: 'ftp:testConnection',
   FtpListDir: 'ftp:listDir',
   FtpDelete: 'ftp:delete',

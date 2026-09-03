@@ -5,6 +5,7 @@ import type { OperationLogEvent } from '@shared/types'
 import { resolveBaseDir } from './appPaths'
 import { PublishService } from './services/publishService'
 import { ElectronProxySettingsStore, ProxyService } from './services/proxyService'
+import { ensureEnvSeeded } from './services/envService'
 import { registerIpc } from './ipc/registerIpc'
 import { appendLogFile, initLogFileService } from './services/logFileService'
 
@@ -46,6 +47,16 @@ function createWindow(): void {
   mainWindow.webContents.setWindowOpenHandler(() => ({ action: 'deny' }))
   mainWindow.webContents.on('will-navigate', (event) => event.preventDefault())
 
+  // F12 / Ctrl+Shift+I 开 DevTools：仅开发模式；打包版不给入口，避免交付对象误触
+  if (!app.isPackaged) {
+    mainWindow.webContents.on('before-input-event', (_event, input) => {
+      if (input.type !== 'keyDown') return
+      const isF12 = input.key === 'F12'
+      const isCtrlShiftI = input.control && input.shift && input.key.toLowerCase() === 'i'
+      if (isF12 || isCtrlShiftI) mainWindow?.webContents.toggleDevTools()
+    })
+  }
+
   if (!app.isPackaged && process.env.VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(process.env.VITE_DEV_SERVER_URL)
   } else {
@@ -86,6 +97,14 @@ app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return
   nativeTheme.themeSource = 'dark'
   await initLogFileService(resolveBaseDir())
+  // 安装/便携版首次启动：exe 同级无 .env 时用包内出厂默认值补一份（已有配置绝不覆盖）
+  try {
+    if (ensureEnvSeeded(resolveBaseDir(), path.join(__dirname, 'default.env'))) {
+      dispatchLog({ level: 'info', scope: 'env', message: '未发现 .env，已按出厂默认值生成配置文件' })
+    }
+  } catch (err) {
+    console.error('[fp] [error] [env] 写入默认 .env 失败:', err)
+  }
   const userDataDir = app.getPath('userData')
   proxyService = new ProxyService({
     rootDir: path.join(resolveBaseDir(), '.web'),

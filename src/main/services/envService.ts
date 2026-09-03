@@ -1,5 +1,5 @@
 import { parse as parseEnvText } from 'dotenv'
-import { readFileSync } from 'node:fs'
+import { copyFileSync, existsSync, readFileSync } from 'node:fs'
 import path from 'node:path'
 import { DEFAULT_FTP_PORT, DEFAULT_RECORD_DIR_NAME, REQUIRED_ENV_KEYS } from '@shared/constants'
 import type { ApiResult, AppError, FtpConfigView } from '@shared/types'
@@ -118,6 +118,14 @@ export function loadEnvConfig(baseDir: string): EnvLoadResult {
     }
   }
   return parseEnvFields(parseEnvText(text), baseDir)
+}
+
+/** 首次启动种子：baseDir 无 .env 时，用包内出厂默认值（default.env）写出一份，绝不覆盖已有配置 */
+export function ensureEnvSeeded(baseDir: string, seedPath: string): boolean {
+  const target = path.join(baseDir, '.env')
+  if (existsSync(target) || !existsSync(seedPath)) return false
+  copyFileSync(seedPath, target)
+  return true
 }
 
 /** 脱敏视图：密码只以 *** 形式越过 IPC */
