@@ -83,3 +83,34 @@ jobs:
           name: mac-${{ matrix.arch }}
           path: release/*.dmg
           if-no-files-found: error
+
+  release:
+    needs: [build-win, build-mac]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 读取版本号
+        id: version
+        run: echo "value=$(node -p "require('./package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: 发布到 GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: v${{ steps.version.outputs.value }}
+        run: |
+          # 清理同名 release 与 tag，保证干净重建（同版本重复构建覆盖旧产物）
+          gh release delete "$TAG" --yes >/dev/null 2>&1 || true
+          gh api -X DELETE "repos/$GITHUB_REPOSITORY/git/refs/tags/$TAG" >/dev/null 2>&1 || true
+          gh release create "$TAG" \
+            artifacts/win-x64/* artifacts/mac-arm64/* artifacts/mac-x64/* \
+            --target master \
+            --title "内容发布工具 $TAG" \
+            --notes "全平台构建产物（自动生成）。下载后首次启动前需手动放置 .env，见 README。"
+

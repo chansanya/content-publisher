@@ -19,7 +19,7 @@
 
 ## 环境要求
 
-- Windows x64
+- Windows x64 / macOS（arm64 与 x64）
 - Node.js >= 18
 
 ## 快速开始
@@ -67,15 +67,28 @@ npm run dev          # 开发调试
 npm test             # 单元测试（Vitest，FTP 全部使用 mock）
 npm run typecheck    # vue-tsc 类型检查
 npm run build        # 构建 main / preload / renderer
-npm run dist:win     # 打包 Windows x64 NSIS 安装包 + 解压 ZIP 版（输出 release/）
+npm run dist:win     # 打包 Windows x64 三件套（输出 release/）
+npm run dist:zip     # 仅打包 Windows x64 解压 ZIP 版（日常迭代更快）
 ```
 
 `dist:win` 的 Windows 输出包括：
 
 - `内容发布工具-<version>-x64-setup.exe`：NSIS 安装版，可选择安装目录并创建桌面快捷方式。
-- `内容发布工具-<version>-x64-unpacked.zip`：解压版。解压一次后直接运行目录中的 `内容发布工具.exe`，程序以该目录为工作目录，不会像 `portable.exe` 一样每次启动重新自解压。
+- `内容发布工具-<version>-x64.zip`：解压版。解压一次后直接运行目录中的 `内容发布工具.exe`，程序以该目录为工作目录。
+- `内容发布工具-<version>-x64-portable.exe`：单文件便携版，自解压后运行，可拷贝到任意位置。
 
-应用图标来自 `resources/icon.svg`，由 electron-builder 在打包时处理。
+应用图标来自 `resources/icon.svg`，构建时转为 `icon.ico`（Windows）/ `icon.icns`（macOS）。
+
+### GitHub Actions 制品与 .env
+
+GitHub 流水线打出的包（Actions Artifacts / Releases 下载）**不含出厂 .env**：源码仓库按安全规范不提交 `.env`，CI 环境亦无此文件，因此包内没有 `default.env` 种子。
+
+**下载制品后，首次启动前需手动放置 `.env`**（内容参考 [.env.example](.env.example)）：
+
+- Windows：放到可执行文件同级目录（安装版在安装目录，解压版在解压目录，便携版在 portable exe 所在目录）。
+- macOS：放到 `~/Library/Application Support/内容发布工具/`（应用首次启动会自动创建该目录，也可直接放一份 .env 进去）。
+
+本地 `npm run dist:win` 打包时会自动把项目根 `.env` 作为出厂默认值打进包内（`dist/main/default.env`），无需手动放置。
 
 ## 使用流程
 
