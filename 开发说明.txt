@@ -36,7 +36,7 @@ FtpPublisher 是一个面向 Windows x64 的 Electron 桌面发布工具，用�
 - 单元测试：Vitest
 - 组件测试：Vue Test Utils
 - 打包：`electron-builder`
-- 目标平台：Windows x64，输出 NSIS 安装包和解压 ZIP 版（目录版）。解压版解压一次后直接从当前目录运行，不使用 portable 自解压模式。
+- 目标平台：Windows x64，输出 NSIS 安装包、解压 ZIP 版（目录版）和 portable 单文件便携版。解压 ZIP 版解压一次后直接从当前目录运行；portable 为自解压单文件，拷贝到任意位置运行。
 
 Electron 必须启用 `contextIsolation`，禁用 `nodeIntegration`。FTP、环境变量、文件扫描、压缩解压和发布记录读写全部在主进程完成，渲染进程只能通过 preload 暴露的白名单 API 调用。
 
@@ -368,7 +368,7 @@ type ApiResult<T> =
 - 本地版本缺失或校验失败时禁止回滚。
 - 异常退出后的进行中任务在重启后标记为 `interrupted`。
 - FTP 服务单元测试使用 mock，不依赖真实生产服务器。
-- Windows x64 安装版和解压 ZIP 版完成启动、连接、发布、失败及回滚冒烟测试。
+- Windows x64 安装版、解压 ZIP 版和便携版完成启动、连接、发布、失败及回滚冒烟测试。
 - 本地代理设置可持久化，端口占用时返回明确错误。
 - 应用历史版本会清空旧代理内容、保留原 ZIP，并更新最近应用版本。
 - 连接成功后可列出固定远程目录，删除行为不能逃逸 `FTP_REMOTE_ROOT`。
@@ -395,4 +395,4 @@ type ApiResult<T> =
 4. 完成 FTP/FTPS 单 ZIP 上传、PHP 部署脚本和服务器解压状态。
 5. 完成发布记录、异常中断标记和历史版本回滚。
 6. 完成连接页、发布页、进度展示和发布记录页。
-7. 输出 `.env.example`、运行说明、NSIS 安装包和解压 ZIP 版（目录版）。
+7. 输出 `.env.example`、运行说明、NSIS 安装包、解压 ZIP 版和便携版。
