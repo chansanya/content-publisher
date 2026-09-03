@@ -48,9 +48,9 @@ jobs:
     strategy:
       matrix:
         include:
-          - os: macos-13 # Intel runner，原生编译 x64
+          - os: macos-14 # M1 runner 交叉编译 x64（避开稀少的 Intel runner，排队更快）
             arch: x64
-          - os: macos-14 # M1 runner，原生编译 arm64
+          - os: macos-14 # M1 runner 原生编译 arm64
             arch: arm64
     steps:
       - uses: actions/checkout@v4
