@@ -2,7 +2,7 @@ import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
 export type LogLevel = 'debug' | 'info' | 'success' | 'warn' | 'error'
-export type LogScope = 'connection' | 'remote' | 'publish' | 'rollback' | 'records' | 'proxy' | 'env'
+export type LogScope = 'connection' | 'remote' | 'publish' | 'rollback' | 'records' | 'proxy' | 'plugin' | 'env'
 
 export interface LogEntry {
   id: number

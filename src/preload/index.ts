@@ -1,7 +1,7 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import { IPC_CHANNELS } from '@shared/ipcChannels'
-import type { ApiResult, OperationLogEvent, UploadProgress } from '@shared/types'
+import type { ApiResult, OperationLogEvent, PluginProgress, UploadProgress } from '@shared/types'
 import type { FtpApi, PrepareInput } from './api'
 
 function invoke<T>(channel: string, arg?: unknown): Promise<ApiResult<T>> {
@@ -23,6 +23,12 @@ const api: FtpApi = {
   deleteRemoteEntry: (relativePath: string) => invoke(IPC_CHANNELS.FtpDelete, { relativePath }),
   downloadRemoteFile: (relativePath: string) => invoke(IPC_CHANNELS.FtpDownload, { relativePath }),
   uploadRemoteFiles: (relativeDirectory = '') => invoke(IPC_CHANNELS.FtpUploadFiles, { relativeDirectory }),
+  listPlugins: () => invoke(IPC_CHANNELS.PluginList),
+  createPlugin: (name: string) => invoke(IPC_CHANNELS.PluginCreate, { name }),
+  savePluginMapping: (name: string, remotePath: string) => invoke(IPC_CHANNELS.PluginSaveMapping, { name, remotePath }),
+  pushPlugin: (name: string) => invoke(IPC_CHANNELS.PluginPush, { name }),
+  deletePlugin: (name: string) => invoke(IPC_CHANNELS.PluginDelete, { name }),
+  openPluginRoot: () => invoke(IPC_CHANNELS.PluginOpenRoot),
   syncDeployRuntime: () => invoke(IPC_CHANNELS.FtpSyncDeployRuntime),
   clearRemoteRoot: () => invoke(IPC_CHANNELS.FtpClearRoot),
   cleanIncoming: () => invoke(IPC_CHANNELS.FtpCleanIncoming),
@@ -55,6 +61,11 @@ const api: FtpApi = {
     const listener = (_event: IpcRendererEvent, log: OperationLogEvent): void => callback(log)
     ipcRenderer.on(IPC_CHANNELS.OperationLog, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.OperationLog, listener)
+  },
+  onPluginProgress: (callback) => {
+    const listener = (_event: IpcRendererEvent, progress: PluginProgress): void => callback(progress)
+    ipcRenderer.on(IPC_CHANNELS.PluginProgress, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.PluginProgress, listener)
   }
 }
 

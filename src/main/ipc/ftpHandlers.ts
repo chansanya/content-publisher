@@ -35,12 +35,16 @@ import {
   uploadDeployRuntime
 } from '../services/serverDeployService'
 import { ServiceError } from '../services/errors'
+import { isPluginPathProtected, type PluginService } from '../services/pluginService'
 
 export interface FtpHandlerDeps {
   sendLog: (event: OperationLogEvent) => void
+  pluginService?: PluginService
 }
 
 export function registerFtpHandlers(deps: FtpHandlerDeps): void {
+  const getPluginPaths = async (): Promise<string[]> => (deps.pluginService ? deps.pluginService.getPluginPaths() : [])
+
   ipcMain.handle(IPC_CHANNELS.FtpTestConnection, async (): Promise<ApiResult<ConnectionTestResult>> => {
     const result = loadEnvConfig(resolveBaseDir())
     if (!result.ok) return { ok: false, error: result.error }
@@ -67,7 +71,8 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
       }
       const client = createFtpClient()
       try {
-        return { ok: true, data: await listRemoteDirectory(client, result.data, relativePath ?? '') }
+        const listing = await listRemoteDirectory(client, result.data, relativePath ?? '')
+        return { ok: true, data: { ...listing, protectedPaths: await getPluginPaths() } }
       } catch (err) {
         return { ok: false, error: toAppError(err) }
       } finally {
@@ -86,18 +91,27 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
         return { ok: false, error: new ServiceError('PARAM_INVALID', 'relativePath 必须是非空字符串').appError }
       }
       const config = result.data
+      const normalized = relativePath.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+      let pluginPaths: string[]
+      try {
+        pluginPaths = await getPluginPaths()
+      } catch (err) {
+        return { ok: false, error: toAppError(err) }
+      }
+      if (isPluginPathProtected(normalized, pluginPaths)) {
+        return { ok: false, error: new ServiceError('PLUGIN_PATH_PROTECTED', '插件映射目录只能在插件管理页面删除').appError }
+      }
       const log = (level: OperationLogEvent['level'], message: string): void => {
         deps.sendLog({ level, scope: 'remote', message })
       }
 
       // 部署接口可用时优先服务端删除（PHP 本地递归删除远快于 FTP 逐层删），失败自动回退 FTP
       if (serverDeployEnabled(config)) {
-        const normalized = relativePath.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
         let runtimeReady = false
         const serverClient = createFtpClient()
         try {
           await connectClient(serverClient, config)
-          await uploadDeployRuntime(serverClient, config, deployScriptPath())
+          await uploadDeployRuntime(serverClient, config, deployScriptPath(), undefined, pluginPaths)
           runtimeReady = true
         } catch (err) {
           log('warn', `服务端部署脚本上传失败，回退 FTP 删除: ${toAppError(err).message}`)
@@ -149,8 +163,10 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
     try {
       log('info', '[2/4] 连接 FTP')
       await connectClient(client, config)
-      await uploadDeployRuntime(client, config, deployScriptPath(), (message) => log('info', message))
-      log('success', '服务端部署脚本已更新 · deploy.php + config.php')
+      const pluginPaths = await getPluginPaths()
+      await uploadDeployRuntime(client, config, deployScriptPath(), (message) => log('info', message), pluginPaths)
+      const syncedPlugins = deps.pluginService ? await deps.pluginService.syncAll(client, config) : []
+      log('success', `服务端运行文件已同步 · deploy.php + config.php + 插件 ${syncedPlugins.length} 个 · 映射路径已保护`)
       return { ok: true, data: null }
     } catch (err) {
       return { ok: false, error: toAppError(err) }
@@ -166,14 +182,21 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
     const log = (level: OperationLogEvent['level'], message: string): void => {
       deps.sendLog({ level, scope: 'remote', message })
     }
+    let pluginPaths: string[]
+    try {
+      pluginPaths = await getPluginPaths()
+    } catch (err) {
+      return { ok: false, error: toAppError(err) }
+    }
+    const protectedPaths = pluginPaths
 
-    // 部署接口可用时优先服务端清空；.ftppublisher 控制目录（deploy.php/config.php）始终保留
+    // 部署接口可用时优先服务端清空；.ftppublisher 与已同步插件目录始终保留
     if (serverDeployEnabled(config)) {
       let runtimeReady = false
       const serverClient = createFtpClient()
       try {
         await connectClient(serverClient, config)
-        await uploadDeployRuntime(serverClient, config, deployScriptPath())
+        await uploadDeployRuntime(serverClient, config, deployScriptPath(), undefined, pluginPaths)
         runtimeReady = true
       } catch (err) {
         log('warn', `服务端部署脚本上传失败，回退 FTP 清空: ${toAppError(err).message}`)
@@ -183,8 +206,8 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
 
       if (runtimeReady) {
         try {
-          log('info', `正在通过服务端接口清空 ${config.remoteRoot}（保留 ${CONTROL_DIR_NAME}）`)
-          const response = await triggerServerClear(config)
+          log('info', `正在通过服务端接口清空 ${config.remoteRoot}（保留 ${CONTROL_DIR_NAME}${pluginPaths.length ? `、插件 ${pluginPaths.join('、')}` : ''}）`)
+          const response = await triggerServerClear(config, pluginPaths)
           log('success', `服务端清空完成 · 删除 ${response.removed} 个顶层条目 · ${response.durationMs}ms`)
           return { ok: true, data: { removed: response.removed } }
         } catch (err) {
@@ -195,7 +218,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
 
     const client = createFtpClient()
     try {
-      log('info', `正在通过 FTP 清空 ${config.remoteRoot}（保留 ${CONTROL_DIR_NAME}）`)
+      log('info', `正在通过 FTP 清空 ${config.remoteRoot}（保留 ${CONTROL_DIR_NAME}${pluginPaths.length ? `、插件 ${pluginPaths.join('、')}` : ''}）`)
       await connectClient(client, config)
       await client.cd(config.remoteRoot)
       const entries = await client.list()
@@ -203,7 +226,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
       let lastLoggedAt = 0
       for (let index = 0; index < entries.length; index++) {
         const entry = entries[index]
-        if (entry.name === CONTROL_DIR_NAME) continue
+        if (entry.name === CONTROL_DIR_NAME || isPluginPathProtected(entry.name, protectedPaths)) continue
         const target = joinPosix(config.remoteRoot, entry.name)
         const now = Date.now()
         if (index === 0 || entry.isDirectory || now - lastLoggedAt >= 1000) {

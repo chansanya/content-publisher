@@ -46,9 +46,16 @@ if (!up) {
 
 const app = spawn(electron, ['.'], {
   cwd: root,
-  stdio: 'inherit',
+  // Electron 在 Windows 代码页 936 下直接继承控制台会把 UTF-8 中文输出成乱码。
+  // 通过 Node 按 UTF-8 解码后转发，避免修改用户终端的全局代码页。
+  stdio: ['inherit', 'pipe', 'pipe'],
   env: { ...process.env, VITE_DEV_SERVER_URL: devUrl }
 })
+
+app.stdout.setEncoding('utf8')
+app.stderr.setEncoding('utf8')
+app.stdout.on('data', (chunk) => process.stdout.write(chunk))
+app.stderr.on('data', (chunk) => process.stderr.write(chunk))
 
 app.on('exit', (code) => {
   renderer.kill()

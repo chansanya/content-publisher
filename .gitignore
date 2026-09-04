@@ -8,3 +8,4 @@ release/
 Thumbs.db
 .web/
 publish-replacements.json
+plugins/**/mailer-config.php

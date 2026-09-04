@@ -4,6 +4,7 @@ import { IPC_CHANNELS } from '@shared/ipcChannels'
 import type { OperationLogEvent } from '@shared/types'
 import { resolveBaseDir } from './appPaths'
 import { PublishService } from './services/publishService'
+import { ElectronPluginMappingStore, PluginService } from './services/pluginService'
 import { ElectronProxySettingsStore, ProxyService } from './services/proxyService'
 import { ensureEnvSeeded } from './services/envService'
 import { registerIpc } from './ipc/registerIpc'
@@ -11,6 +12,7 @@ import { appendLogFile, initLogFileService } from './services/logFileService'
 
 let mainWindow: BrowserWindow | null = null
 let proxyService: ProxyService | null = null
+let pluginService: PluginService | null = null
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 
 /** 日志统一出口：文件记录全部级别；debug 仅落文件，终端与界面只出 info 及以上 */
@@ -82,7 +84,8 @@ const publishService = new PublishService({
             filters: [{ name: 'ZIP 压缩包', extensions: ['zip'] }]
           })
     return result.canceled || result.filePaths.length === 0 ? null : result.filePaths[0]
-  }
+  },
+  getPluginPaths: async () => pluginService?.getPluginPaths() ?? []
 })
 
 if (!hasSingleInstanceLock) app.quit()
@@ -111,7 +114,18 @@ app.whenReady().then(async () => {
     settingsStore: new ElectronProxySettingsStore(userDataDir),
     resolveArtifact: (artifactId) => publishService.getVerifiedArtifact(artifactId)
   })
-  registerIpc(publishService, proxyService, {
+  const activePluginService = new PluginService({
+    baseDir: resolveBaseDir,
+    mappingStore: new ElectronPluginMappingStore(userDataDir),
+    sendProgress: (progress) => {
+      mainWindow?.webContents.send(IPC_CHANNELS.PluginProgress, progress)
+    },
+    sendLog: (event) => {
+      dispatchLog(event)
+    }
+  })
+  pluginService = activePluginService
+  registerIpc(publishService, proxyService, activePluginService, {
     sendLog: (event) => {
       dispatchLog(event)
     }

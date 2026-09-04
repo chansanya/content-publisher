@@ -235,15 +235,22 @@ export async function uploadRemoteFiles(
 }
 
 /**
- * 清空 FTP_REMOTE_ROOT 内部全部内容，保留根目录本身。
+ * 清空 FTP_REMOTE_ROOT 内部普通内容，保留控制目录及调用方指定的顶层目录。
  * 删除目标一律基于 remoteRoot 拼接，绝不删除根目录。
  */
 export type ClearLogSink = (level: 'info' | 'success' | 'error', message: string) => void
 
+function pathsIntersect(first: string, second: string): boolean {
+  const a = first.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '')
+  const b = second.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '')
+  return a === b || a.startsWith(`${b}/`) || b.startsWith(`${a}/`)
+}
+
 export async function clearRemoteRoot(
   client: FtpClientLike,
   remoteRoot: string,
-  log?: ClearLogSink
+  log?: ClearLogSink,
+  preservePaths: readonly string[] = ['.ftppublisher']
 ): Promise<number> {
   let currentTarget = ''
   let currentType = ''
@@ -256,6 +263,7 @@ export async function clearRemoteRoot(
     let lastLoggedAt = 0
     for (let index = 0; index < entries.length; index++) {
       const entry = entries[index]
+      if (entry.name === '.ftppublisher' || preservePaths.some((name) => pathsIntersect(entry.name, name))) continue
       const target = joinPosix(remoteRoot, entry.name)
       currentTarget = target
       currentType = entry.isDirectory ? '目录' : '文件'

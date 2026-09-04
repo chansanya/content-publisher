@@ -17,6 +17,12 @@ import type {
   RemoteDirectoryListing,
   RemoteDownloadResult,
   RemoteUploadResult,
+  PluginListResult,
+  PluginDeleteResult,
+  PluginCreateResult,
+  PluginProgress,
+  PluginPushResult,
+  PluginSummary,
   UploadProgress
 } from '@shared/types'
 
@@ -38,6 +44,13 @@ export interface FtpApi {
   deleteRemoteEntry(relativePath: string): Promise<ApiResult<RemoteDeleteResult>>
   downloadRemoteFile(relativePath: string): Promise<ApiResult<RemoteDownloadResult | null>>
   uploadRemoteFiles(relativeDirectory?: string): Promise<ApiResult<RemoteUploadResult | null>>
+  listPlugins(): Promise<ApiResult<PluginListResult>>
+  createPlugin(name: string): Promise<ApiResult<PluginCreateResult>>
+  savePluginMapping(name: string, remotePath: string): Promise<ApiResult<PluginSummary>>
+  pushPlugin(name: string): Promise<ApiResult<PluginPushResult>>
+  deletePlugin(name: string): Promise<ApiResult<PluginDeleteResult>>
+  openPluginRoot(): Promise<ApiResult<true>>
+  onPluginProgress(callback: (progress: PluginProgress) => void): () => void
   syncDeployRuntime(): Promise<ApiResult<null>>
   clearRemoteRoot(): Promise<ApiResult<RemoteClearResult>>
   cleanIncoming(): Promise<ApiResult<RemoteCleanIncomingResult>>

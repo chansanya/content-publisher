@@ -61,6 +61,32 @@ function is_safe_relative_path(string $raw): bool
     return true;
 }
 
+function normalize_preserve_path(string $raw): ?string
+{
+    $path = trim(str_replace('\\', '/', $raw), '/');
+    if ($path === '' || preg_match('/^[A-Za-z]:/', $path)) return null;
+    $parts = explode('/', $path);
+    foreach ($parts as $part) {
+        if ($part === '' || $part === '.' || $part === '..' || $part[0] === '.' || preg_match('/[\r\n]/', $part)) {
+            return null;
+        }
+    }
+    return implode('/', $parts);
+}
+
+function path_intersects_preserved(string $path, array $preserved): bool
+{
+    $path = trim(str_replace('\\', '/', $path), '/');
+    foreach ($preserved as $protected) {
+        if ($path === $protected || strncmp($path, $protected . '/', strlen($protected) + 1) === 0 || strncmp($protected, $path . '/', strlen($path) + 1) === 0) {
+            return true;
+        }
+    }
+    return false;
+}
+
+// config.php 中的 preserve 是插件管理器同步的远程相对路径；其祖先与子项同样视为受保护。
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') respond(405, ['ok' => false, 'message' => 'Method Not Allowed']);
 if (!class_exists('ZipArchive')) respond(500, ['ok' => false, 'message' => '服务器未启用 PHP ZipArchive']);
 
@@ -68,6 +94,12 @@ $configFile = __DIR__ . DIRECTORY_SEPARATOR . 'config.php';
 if (!is_file($configFile)) respond(500, ['ok' => false, 'message' => '部署配置不存在']);
 $config = require $configFile;
 $expectedToken = is_array($config) ? (string)($config['token'] ?? '') : '';
+$preservedPaths = [];
+if (is_array($config) && is_array($config['preserve'] ?? null)) {
+    foreach ($config['preserve'] as $name) {
+        if (is_string($name) && ($normalized = normalize_preserve_path($name)) !== null) $preservedPaths[$normalized] = true;
+    }
+}
 $providedToken = (string)($_SERVER['HTTP_X_FTPPUBLISHER_TOKEN'] ?? '');
 if ($expectedToken === '' || !hash_equals($expectedToken, $providedToken)) {
     respond(403, ['ok' => false, 'message' => '部署密钥无效']);
@@ -89,11 +121,21 @@ if ($action === 'delete') {
         if (!is_string($relative) || !is_safe_relative_path($relative)) {
             respond(400, ['ok' => false, 'message' => '包含非法路径']);
         }
+        if (path_intersects_preserved($relative, array_keys($preservedPaths))) {
+            respond(403, ['ok' => false, 'message' => '插件映射目录只能在插件管理页面删除']);
+        }
+    }
+}
+if ($action === 'clear' && is_array($body) && is_array($body['preserve'] ?? null)) {
+    foreach ($body['preserve'] as $name) {
+        if (is_string($name) && ($normalized = normalize_preserve_path($name)) !== null) $preservedPaths[$normalized] = true;
     }
 }
 
 $controlDir = __DIR__;
 $controlName = basename($controlDir);
+$preservedPaths[$controlName] = true;
+$protectedPaths = array_keys($preservedPaths);
 $rootDir = dirname($controlDir);
 $archivePath = $controlDir . DIRECTORY_SEPARATOR . 'incoming' . DIRECTORY_SEPARATOR . $releaseId . '.zip';
 $stagingDir = $controlDir . DIRECTORY_SEPARATOR . 'staging' . DIRECTORY_SEPARATOR . $releaseId;
@@ -131,7 +173,7 @@ try {
         if ($rootItems === false) throw new RuntimeException('无法读取站点根目录');
         $removed = 0;
         foreach ($rootItems as $item) {
-            if ($item === '.' || $item === '..' || $item === $controlName) continue;
+            if ($item === '.' || $item === '..' || path_intersects_preserved($item, $protectedPaths)) continue;
             remove_tree($rootDir . DIRECTORY_SEPARATOR . $item);
             $removed += 1;
         }
@@ -171,7 +213,7 @@ try {
     $rootItems = scandir($rootDir);
     if ($rootItems === false) throw new RuntimeException('无法读取站点根目录');
     foreach ($rootItems as $item) {
-        if ($item === '.' || $item === '..' || $item === $controlName) continue;
+        if ($item === '.' || $item === '..' || path_intersects_preserved($item, $protectedPaths)) continue;
         remove_tree($rootDir . DIRECTORY_SEPARATOR . $item);
     }
 
@@ -179,6 +221,7 @@ try {
     if ($stagingItems === false) throw new RuntimeException('无法读取解压结果');
     foreach ($stagingItems as $item) {
         if ($item === '.' || $item === '..') continue;
+        if (path_intersects_preserved($item, $protectedPaths)) continue;
         move_tree($stagingDir . DIRECTORY_SEPARATOR . $item, $rootDir . DIRECTORY_SEPARATOR . $item);
     }
 

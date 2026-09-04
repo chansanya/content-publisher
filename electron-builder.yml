@@ -10,6 +10,8 @@ files:
 extraFiles:
   - from: .env.example
     to: .env.example
+  - from: plugins
+    to: plugins
 extraResources:
   - from: resources/deploy.php
     to: deploy.php

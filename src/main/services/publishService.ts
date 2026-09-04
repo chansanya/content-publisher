@@ -33,8 +33,10 @@ import { loadReplacements, type ReplacementStats } from './replacementService'
 import {
   assertServerDeployConfig,
   remoteArchivePath,
-  triggerServerDeploy
+  triggerServerDeploy,
+  uploadDeployRuntime
 } from './serverDeployService'
+import { deployScriptPath } from '../appPaths'
 
 const STAGING_TTL_MS = 24 * 60 * 60 * 1000
 
@@ -47,6 +49,8 @@ export interface PublishDeps {
   createStore?: (recordDir: string) => RecordStore
   /** 渲染进程未显式传路径时由主进程弹出系统选择框 */
   selectInput?: (type: SourceType) => Promise<string | null>
+  /** 当前插件远程路径列表，发布时写入服务端 config.php 的 preserve 清单，避免全量替换误删插件 */
+  getPluginPaths?: () => Promise<string[]>
 }
 
 interface StagingEntry {
@@ -441,15 +445,19 @@ export class PublishService {
     }
     const client = (this.deps.createClient ?? createFtpClient)()
     try {
-      log('[1/5] 校验部署配置')
-      log('[2/5] 连接 FTP')
+      log('[1/6] 校验部署配置')
+      log('[2/6] 连接 FTP')
       await connectClient(client, config)
+      // 发布前同步 deploy.php + config.php，并把插件远程路径写入 preserve 清单，避免全量替换误删插件
+      const pluginPaths = this.deps.getPluginPaths ? await this.deps.getPluginPaths() : []
+      log('[3/6] 同步服务端运行文件')
+      await uploadDeployRuntime(client, config, deployScriptPath(), undefined, pluginPaths)
       record.status = 'uploading'
       store.update(record)
       const zipName = path.basename(zipPath)
       tracker.onUploadStart({ path: zipName, size: statSync(zipPath).size })
       client.trackProgress((info) => tracker.onBytes(info.bytesOverall, info.bytes))
-      log(`[3/5] 上传 ${zipName}`)
+      log(`[4/6] 上传 ${zipName}`)
       await client.uploadFrom(zipPath, remoteArchivePath(config, manifest.id))
       tracker.onFileDone()
     } finally {
@@ -460,12 +468,12 @@ export class PublishService {
     record.status = 'deploying'
     store.update(record)
     tracker.emitDeploying()
-    log('[4/5] 调用 DEPLOY_ENDPOINT')
+    log('[5/6] 调用 DEPLOY_ENDPOINT')
     const result = await triggerServerDeploy(config, manifest.id)
     this.deps.sendLog?.({
       level: 'success',
       scope: 'publish',
-      message: `[5/5] PHP 解压并替换站点 · ${result.files} 个 ZIP 条目 · ${result.durationMs}ms`
+      message: `[6/6] PHP 解压并替换站点 · ${result.files} 个 ZIP 条目 · ${result.durationMs}ms`
     })
 
     tracker.emitSuccess()

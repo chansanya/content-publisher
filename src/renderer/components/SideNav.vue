@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
-import { CloudUpload, FolderTree, Globe2, History, HardDriveUpload, Replace, Settings } from 'lucide-vue-next'
+import { CloudUpload, FolderTree, Globe2, History, HardDriveUpload, PackageOpen, Replace, Settings } from 'lucide-vue-next'
 import { useUiStore } from '@renderer/stores/ui'
 import { useConnectionStore } from '@renderer/stores/connection'
 import type { PageName } from '@renderer/stores/ui'
@@ -13,7 +13,8 @@ const items: { key: PageName; label: string; icon: typeof CloudUpload; requiresC
   { key: 'replacements', label: '替换规则', icon: Replace },
   { key: 'remote', label: '远程文件', icon: FolderTree, requiresConnection: true },
   { key: 'records', label: '发布记录', icon: History },
-  { key: 'proxy', label: '本地代理', icon: Globe2 }
+  { key: 'proxy', label: '本地代理', icon: Globe2 },
+  { key: 'plugins', label: '插件管理', icon: PackageOpen, requiresConnection: true }
 ]
 
 const visibleItems = computed(() =>
@@ -23,7 +24,7 @@ const visibleItems = computed(() =>
 watch(
   () => connection.testState,
   (state) => {
-    if (state !== 'success' && ui.currentPage === 'remote') ui.go('publish')
+    if (state !== 'success' && (ui.currentPage === 'remote' || ui.currentPage === 'plugins')) ui.go('publish')
   }
 )
 

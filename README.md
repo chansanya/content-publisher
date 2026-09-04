@@ -15,7 +15,9 @@
 → 保存发布结果
 ```
 
-固定远程目录是独占部署槽位。服务端发布时保留 `.ftppublisher` 控制目录，其余内容会被目标 ZIP 完整替换。回滚复用历史 ZIP，走同一套服务器端解压流程。
+固定远程目录是独占部署槽位。服务端发布时保留 `.ftppublisher` 控制目录和已同步插件目录，其余内容会被目标 ZIP 完整替换。回滚复用历史 ZIP，走同一套服务器端解压流程。
+
+`plugins/` 是独立插件目录。每个一级子目录可在「插件管理」页面单独同步到远程根目录，远程映射路径可逐项自定义，例如 `plugins/wp-admin/` → `远程根目录/wp-admin/`、`plugins/probe/` → `远程根目录/plugins/probe/`。映射保存在应用数据的 `plugin-mappings.json` 中。插件推送只覆盖同名文件，不清空站点、不生成发布记录；执行「同步运行文件」时会同时同步全部插件，并让完整发布/清空流程保留这些映射路径。
 
 ## 环境要求
 
@@ -97,6 +99,7 @@ GitHub 流水线打出的包（Actions Artifacts / Releases 下载）**不含出
 3. **本地发布**：支持选择文件夹或 ZIP。文件夹会先复制为本地快照并统一打包成 ZIP；ZIP 输入则完成路径安全校验和唯一顶级目录剥离。两者最终都只通过 FTP 上传一个 ZIP，再由 PHP 在服务器本地解压替换站点。
 4. **发布记录**：成功记录可执行「回滚」；失败或中断记录点击「再次发布」后会跳转到本地发布页，以 ZIP 输入展示原归档和文件清单。确认执行后原地更新当前记录，不新增记录，也不重新扫描或压缩源文件。
 5. **本地代理**：设置端口与 SPA 回退后手动启动；历史记录可点击「应用代理」，清空 `.web` 后解压目标版本，原历史 ZIP 保持不变。
+6. **插件管理**：连接成功后进入「插件管理」，可新建 `plugins/` 一级目录、为其设置远程映射路径并上传。映射路径、其子项及为其提供目录的祖先路径不能在远程文件页删除。插件页删除时，远程存在则只删除远程；远程已不存在则删除本地插件目录及映射。修改插件或映射后点击「同步运行文件」可连同 `deploy.php`、`config.php` 一起同步。
 
 ## 本地 Web 代理
 
@@ -123,12 +126,28 @@ historical/
 
 本地版本默认永久保留，MVP 不做自动清理。异常退出后遗留的进行中任务会在下次启动时标记为 `interrupted`。
 
+插件远程映射保存在 Electron `userData` 目录的 `plugin-mappings.json`，不随站点文件或发布记录清理。
+
 ## 工程结构
 
 ```text
 src/
-├─ main/        主进程：env / ftp / artifact / server deploy / record / publish / proxy 服务
+├─ main/        主进程：env / ftp / artifact / server deploy / record / publish / proxy / plugin 服务
 ├─ preload/     contextBridge 白名单桥接（contextIsolation 开启，nodeIntegration 关闭）
 ├─ renderer/    Vue 3 + Pinia + Element Plus（连接 / 远程文件 / 发布 / 记录 / 代理页面 + 全局日志）
 └─ shared/      跨进程类型、IPC 通道、常量
 ```
+
+打包后，`plugins/` 会放在程序可执行文件同级目录；开发环境使用项目根目录的 `plugins/`。插件目录可直接编辑，推送时按页面中保存的远程映射路径上传到 `FTP_REMOTE_ROOT`。
+
+## 插件目录
+
+```text
+plugins/
+└─ wp-admin/
+   └─ admin-ajax.php
+```
+
+推送后对应远程路径为 `FTP_REMOTE_ROOT/wp-admin/admin-ajax.php`。插件目录属于独立运行文件，完整版本发布和远程清空时会保留；映射路径下的文件不能从远程文件页删除，需在插件管理页删除整个远程插件目录。移除本地插件目录并同步运行文件后，该映射会从保护清单移除，下一次发布或清空才会清理远程残留。
+
+例如在插件管理页将 `probe` 映射为 `/plugins/probe`，则 `plugins/probe/probe.php` 会上传到 `FTP_REMOTE_ROOT/plugins/probe/probe.php`；映射路径必须是相对远程根目录的安全路径。

@@ -72,7 +72,7 @@ const remoteRoot = computed(() => connection.config?.remoteRoot ?? '(未配置)'
 const syncStepText = computed(() => {
   for (let i = logs.entries.length - 1; i >= 0; i--) {
     const entry = logs.entries[i]
-    if (entry.scope === 'publish') return entry.message
+    if (entry.scope === 'publish' || entry.scope === 'plugin') return entry.message
   }
   return '准备同步'
 })
@@ -236,9 +236,9 @@ async function requestClearSummary(): Promise<void> {
       <ServerCog :size="15" class="runtime-bar-icon" />
       <span class="runtime-bar-hint">
         <span v-if="syncingRuntime || cleaningIncoming" class="mono">{{ syncStepText }}</span>
-        <template v-else>部署脚本维护</template>
+        <template v-else>运行文件同步</template>
       </span>
-      <el-tooltip content="同步到服务器" placement="top">
+      <el-tooltip content="同步 deploy.php、config.php 和全部插件" placement="top">
         <el-button
           size="small"
           text
@@ -386,7 +386,7 @@ async function requestClearSummary(): Promise<void> {
       >
         <div class="mono" style="font-size: 12px; line-height: 1.8">
           目标目录: {{ remoteRoot }}<br />
-          服务端会保留 .ftppublisher 控制目录，其余内容会被完整替换，操作不可恢复。
+          服务端会保留 .ftppublisher 控制目录和已同步插件目录，其余内容会被完整替换，操作不可恢复。
         </div>
       </el-alert>
 

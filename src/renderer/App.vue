@@ -8,6 +8,7 @@ import PublishPage from './pages/PublishPage.vue'
 import RecordsPage from './pages/RecordsPage.vue'
 import ReplacementsPage from './pages/ReplacementsPage.vue'
 import ProxyPage from './pages/ProxyPage.vue'
+import PluginPage from './pages/PluginPage.vue'
 import SettingsPage from './pages/SettingsPage.vue'
 import { useUiStore } from './stores/ui'
 import type { PageName } from './stores/ui'
@@ -39,6 +40,10 @@ const HEADS: Record<PageName, { eyebrow: string; title: string }> = {
     eyebrow: 'Local Web',
     title: '本地代理'
   },
+  plugins: {
+    eyebrow: 'Plugins',
+    title: '插件管理'
+  },
   settings: {
     eyebrow: 'Settings',
     title: '设置'
@@ -53,6 +58,7 @@ const PAGES: Record<PageName, Component> = {
   records: RecordsPage,
   replacements: ReplacementsPage,
   proxy: ProxyPage,
+  plugins: PluginPage,
   settings: SettingsPage
 }
 

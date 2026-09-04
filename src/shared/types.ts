@@ -24,7 +24,7 @@ export type ApiResult<T> =
 export interface OperationLogEvent {
   /** debug 仅落日志文件，终端与界面只显示 info 及以上 */
   level: 'debug' | 'info' | 'success' | 'warn' | 'error'
-  scope: 'publish' | 'remote' | 'env'
+  scope: 'publish' | 'remote' | 'plugin' | 'env'
   message: string
 }
 
@@ -62,6 +62,8 @@ export interface RemoteDirectoryListing {
   relativePath: string
   remotePath: string
   entries: RemoteEntry[]
+  /** 映射插件的远程相对路径，远程文件页禁止删除其本身及子项 */
+  protectedPaths?: string[]
 }
 
 export interface RemoteDeleteResult {
@@ -92,6 +94,40 @@ export interface RemoteUploadResult {
   remoteDirectory: string
   uploadedFiles: number
   totalBytes: number
+}
+
+export interface PluginSummary {
+  name: string
+  remotePath: string
+  localExists: boolean
+  totalFiles: number
+  totalBytes: number
+}
+
+export interface PluginListResult {
+  rootDir: string
+  plugins: PluginSummary[]
+}
+
+export interface PluginCreateResult {
+  name: string
+  localPath: string
+  remotePath: string
+}
+
+export interface PluginPushResult {
+  name: string
+  remoteDirectory: string
+  uploadedFiles: number
+  totalBytes: number
+}
+
+export interface PluginDeleteResult {
+  name: string
+  remoteDirectory: string
+  existed: boolean
+  localRemoved: boolean
+  mappingRemoved: boolean
 }
 
 export interface ManifestFile {
@@ -154,6 +190,10 @@ export interface UploadProgress {
   percentage: number
   bytesPerSecond: number
   estimatedSeconds: number | null
+}
+
+export interface PluginProgress extends UploadProgress {
+  pluginName: string
 }
 
 export interface PublishRecord {

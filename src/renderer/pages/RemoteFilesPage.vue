@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { computed, onMounted } from 'vue'
 import { ElMessageBox } from 'element-plus'
 import {
   ArrowUp,
@@ -8,6 +8,7 @@ import {
   FileSymlink,
   Folder,
   FolderTree,
+  LockKeyhole,
   LoaderCircle,
   RefreshCw,
   Trash2,
@@ -17,9 +18,15 @@ import type { RemoteEntry } from '@shared/types'
 import { useConnectionStore } from '@renderer/stores/connection'
 import { useRemoteStore } from '@renderer/stores/remote'
 import { formatBytes, formatDateTime } from '@renderer/utils/format'
+import OperationLoadingOverlay from '@renderer/components/OperationLoadingOverlay.vue'
 
 const remote = useRemoteStore()
 const connection = useConnectionStore()
+const deletingRemoteTarget = computed(() => {
+  const root = (connection.config?.remoteRoot ?? '').replace(/\/+$/, '')
+  const relativePath = (remote.deletingPath ?? '').replace(/^\/+/, '')
+  return relativePath ? `${root}/${relativePath}` : root
+})
 
 // 列表由启动连接成功后预加载；切回页面仅在尚无数据时兜底加载，否则保留当前目录状态
 onMounted(() => {
@@ -32,15 +39,23 @@ function iconOf(entry: RemoteEntry) {
   return File
 }
 
+function isProtected(entry: RemoteEntry): boolean {
+  const target = entry.path.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '')
+  return (remote.listing?.protectedPaths ?? []).some((protectedPath) => {
+    const path = protectedPath.replace(/\\/g, '/').replace(/\/+/g, '/').replace(/^\/+|\/+$/g, '')
+    return target === path || target.startsWith(`${path}/`) || path.startsWith(`${target}/`)
+  })
+}
+
 async function confirmClearRoot(): Promise<void> {
   const root = connection.config?.remoteRoot ?? remote.listing?.remotePath ?? '--'
   try {
     await ElMessageBox.confirm(
-      `将清空远程根目录「${root}」下的全部内容，仅保留 .ftppublisher 部署控制目录。该操作不进入回收站，无法恢复。`,
+      `将清空远程根目录「${root}」下的普通内容，仅保留 .ftppublisher 部署控制目录和已映射插件目录；插件目录需在插件管理页删除。该操作不进入回收站，无法恢复。`,
       '确认清空远程根目录',
       {
         type: 'warning',
-        confirmButtonText: '清空全部内容',
+        confirmButtonText: '清空普通内容',
         cancelButtonText: '取消',
         confirmButtonClass: 'el-button--danger'
       }
@@ -52,6 +67,10 @@ async function confirmClearRoot(): Promise<void> {
 }
 
 async function confirmDelete(entry: RemoteEntry): Promise<void> {
+  if (isProtected(entry)) {
+    void ElMessageBox.alert('插件映射目录只能在插件管理页面删除。', '无法删除插件目录', { type: 'warning' })
+    return
+  }
   const targetType = entry.type === 'directory' ? '目录及其中全部内容' : entry.type === 'link' ? '链接' : '文件'
   try {
     await ElMessageBox.confirm(
@@ -90,6 +109,14 @@ async function confirmUpload(): Promise<void> {
 
 <template>
   <div>
+    <OperationLoadingOverlay
+      :visible="remote.deletingPath !== null"
+      title="正在删除远程内容"
+      :name="remote.deletingPath ?? ''"
+      :target="deletingRemoteTarget"
+      hint="正在处理远程删除，请勿关闭程序"
+    />
+
     <el-alert
       v-if="remote.error"
       type="error"
@@ -178,6 +205,9 @@ async function confirmUpload(): Promise<void> {
             >
               <component :is="iconOf(row)" :size="16" />
               <span>{{ row.name }}</span>
+              <el-tag v-if="isProtected(row)" size="small" effect="plain" type="warning">
+                <LockKeyhole :size="11" /> 插件
+              </el-tag>
             </button>
           </template>
         </el-table-column>
@@ -209,8 +239,8 @@ async function confirmUpload(): Promise<void> {
               text
               type="danger"
               size="small"
-              :loading="remote.deletingPath === row.path"
-              :disabled="remote.deletingPath !== null || remote.downloadingPath !== null || remote.uploading"
+              :disabled="isProtected(row) || remote.deletingPath !== null || remote.downloadingPath !== null || remote.uploading"
+              :title="isProtected(row) ? '插件映射目录请在插件管理页面删除' : '删除'"
               @click="confirmDelete(row)"
             >
               <template #icon><Trash2 :size="14" /></template>

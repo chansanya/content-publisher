@@ -48,11 +48,21 @@ export function remoteArchivePath(config: ResolvedConfig, releaseId: string): st
   return joinPosix(config.remoteRoot, `${CONTROL_DIR_NAME}/incoming/${releaseId}.zip`)
 }
 
+function normalizePreservePath(raw: string): string | null {
+  const value = raw.trim().replace(/\\/g, '/').replace(/^\/+|\/+$/g, '')
+  const parts = value.split('/')
+  if (!value || /^[A-Za-z]:/.test(value) || parts.some((part) => !part || part === '.' || part === '..' || part.startsWith('.') || /\r|\n/.test(part))) {
+    return null
+  }
+  return parts.join('/')
+}
+
 export async function uploadDeployRuntime(
   client: FtpClientLike,
   config: ResolvedConfig,
   deployScriptPath: string,
-  log?: (message: string) => void
+  log?: (message: string) => void,
+  preservePaths: readonly string[] = []
 ): Promise<void> {
   if (!existsSync(deployScriptPath)) {
     throw new ServiceError('DEPLOY_SCRIPT_MISSING', '本地服务端部署脚本不存在', deployScriptPath)
@@ -62,7 +72,10 @@ export async function uploadDeployRuntime(
   const tempDir = mkdtempSync(path.join(os.tmpdir(), 'ftppub-config-'))
   const configPath = path.join(tempDir, 'config.php')
   const token = config.deployToken.replace(/\\/g, '\\\\').replace(/'/g, "\\'")
-  writeFileSync(configPath, `<?php\nreturn ['token' => '${token}'];\n`, 'utf-8')
+  const preserved = [...new Set(preservePaths.map(normalizePreservePath).filter((name): name is string => name !== null))]
+    .filter((name) => name !== CONTROL_DIR_NAME)
+    .map((name) => `'${name.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`)
+  writeFileSync(configPath, `<?php\nreturn ['token' => '${token}', 'preserve' => [${preserved.join(', ')}]];\n`, 'utf-8')
 
   try {
     await client.ensureDir(joinPosix(controlDir, 'incoming'))
@@ -158,7 +171,7 @@ export interface ServerClearResponse {
   durationMs: number
 }
 
-export async function triggerServerClear(config: ResolvedConfig): Promise<ServerClearResponse> {
-  const body = await postDeployApi(config, { action: 'clear' }, 10 * 60 * 1000, 'SERVER_CLEAR_FAILED')
+export async function triggerServerClear(config: ResolvedConfig, preservePaths: readonly string[] = []): Promise<ServerClearResponse> {
+  const body = await postDeployApi(config, { action: 'clear', preserve: preservePaths }, 10 * 60 * 1000, 'SERVER_CLEAR_FAILED')
   return { removed: Number(body.removed ?? 0), durationMs: Number(body.durationMs ?? 0) }
 }
