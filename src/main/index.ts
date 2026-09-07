@@ -22,7 +22,7 @@ const hasSingleInstanceLock = app.requestSingleInstanceLock()
  */
 function migrateLegacyData(baseDir: string, dataDir: string): void {
   if (baseDir === dataDir) return
-  const names = ['historical', 'logs', '.web', 'publish-replacements.json']
+  const names = ['historical', 'logs', '.web', 'publish-replacements.json', 'plugins']
   for (const name of names) {
     const from = path.join(baseDir, name)
     const to = path.join(dataDir, name)

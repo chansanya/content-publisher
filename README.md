@@ -81,16 +81,21 @@ npm run release:watch # 查看 GitHub Actions 构建状态
 
 应用图标来自 `resources/icon.svg`，构建时转为 `icon.ico`（Windows）/ `icon.icns`（macOS）。
 
-### GitHub Actions 制品与 .env
+### 打包与 .env
 
-GitHub 流水线打出的包（Actions Artifacts / Releases 下载）**不含出厂 .env**：源码仓库按安全规范不提交 `.env`，CI 环境亦无此文件，因此包内没有 `default.env` 种子。
+安装包本身不直接携带 `.env`，只附带 [.env.example](.env.example) 模板。能否「开箱即用」取决于打包方式：
 
-**下载制品后，首次启动前需手动放置 `.env`**（内容参考 [.env.example](.env.example)）：
+| 打包方式 | 是否带出厂配置 | 说明 |
+|---|---|---|
+| 本地 `npm run dist:win` / `dist:zip` | ✅ 带 | 构建时把项目根 `.env` 作为 `default.env` 打进包内，首次启动自动写成 `.env`，无需手动放置 |
+| GitHub Actions 打包 | ❌ 不带 | CI 环境无 `.env`，包内无 `default.env`，首次启动前需手动放置 `.env` |
 
-- Windows：放到可执行文件同级目录（安装版在安装目录，解压版在解压目录，便携版在 portable exe 所在目录）。
-- macOS：放到 `~/Library/Application Support/内容发布工具/`（应用首次启动会自动创建该目录，也可直接放一份 .env 进去）。
+**手动放置 .env 的位置**（内容参考 [.env.example](.env.example)）：
 
-本地 `npm run dist:win` 打包时会自动把项目根 `.env` 作为出厂默认值打进包内（`dist/main/default.env`），无需手动放置。
+- Windows：可执行文件同级目录（安装版在安装目录，解压版在解压目录，便携版在 portable exe 所在目录）。
+- macOS：`~/Library/Application Support/内容发布工具/`（应用首次启动会自动创建该目录，也可直接放一份 .env 进去）。
+
+> ⚠️ **安全提示**：本地打包会把 `.env` 中的真实凭据（FTP 账号密码、部署密钥）随安装包一起分发。仅用于内部或可信环境；对外分发前请改用不含 `.env` 的 CI 打包，或预先替换为占位配置。
 
 ## 使用流程
 
@@ -138,7 +143,7 @@ src/
 └─ shared/      跨进程类型、IPC 通道、常量
 ```
 
-打包后，`plugins/` 会放在程序可执行文件同级目录；开发环境使用项目根目录的 `plugins/`。插件目录可直接编辑，推送时按页面中保存的远程映射路径上传到 `FTP_REMOTE_ROOT`。
+`plugins/` 不随安装包分发，由插件管理页首次访问或新建插件时在可执行文件同级（开发环境为项目根）自动创建；已有插件目录在升级时原样保留，不会被安装包覆盖。插件目录可直接编辑，推送时按页面中保存的远程映射路径上传到 `FTP_REMOTE_ROOT`。
 
 ## 插件目录
 

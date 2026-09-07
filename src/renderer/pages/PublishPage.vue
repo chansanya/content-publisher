@@ -167,7 +167,7 @@ async function confirmAndExecute(): Promise<void> {
   if (!connection.config) return
   try {
     await ElMessageBox.confirm(
-      `即将上传${republishing.value ? '历史' : ''} ZIP，并由服务器解压替换 ${remoteRoot.value} 内的站点内容，共 ${publish.summary.totalFiles} 个文件（${formatBytes(publish.summary.totalBytes)}）。`,
+      `即将发布${publish.summary.totalFiles} 个文件（${formatBytes(publish.summary.totalBytes)}），服务器现有内容会被完整替换${republishing.value ? '，重新发布历史版本' : ''}。此操作不可恢复。`,
       republishing.value ? '确认再次发布' : '确认服务端发布',
       {
         type: 'warning',
@@ -190,7 +190,7 @@ async function requestClearSummary(): Promise<void> {
   }
   try {
     await ElMessageBox.confirm(
-      '将清除当前发布来源与执行结果，返回来源选择界面。',
+      '当前已选择的发布内容和执行结果将被清除，重新选择来源。',
       '重新选择来源',
       { type: 'warning', confirmButtonText: '清除并重新选择', cancelButtonText: '取消' }
     )
@@ -381,18 +381,18 @@ async function requestClearSummary(): Promise<void> {
         type="warning"
         :closable="false"
         show-icon
-        title="ZIP 上传完成后，服务器将解压并替换远程根目录内容"
+        title="上传完成后，服务器将解压并完整替换现有站点内容"
         style="margin-bottom: 14px"
       >
         <div class="mono" style="font-size: 12px; line-height: 1.8">
           目标目录: {{ remoteRoot }}<br />
-          服务端会保留 .ftppublisher 控制目录和已同步插件目录，其余内容会被完整替换，操作不可恢复。
+          已同步的插件内容会保留，其余内容将被完整替换，此操作不可恢复。
         </div>
       </el-alert>
 
       <div style="display: flex; align-items: center; gap: 14px; flex-wrap: wrap">
         <el-checkbox v-model="publish.confirmClear">
-          我已知晓服务器将替换 {{ remoteRoot }} 内的站点内容
+          我已知晓服务器现有内容将被完整替换
         </el-checkbox>
         <span style="flex: 1" />
         <el-button

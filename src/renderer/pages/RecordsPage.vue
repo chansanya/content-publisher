@@ -34,7 +34,7 @@ async function confirmRollback(row: PublishRecord): Promise<void> {
   }
   try {
     await ElMessageBox.confirm(
-      `将上传历史 ZIP「${row.sourceName}」（${row.artifactId}），并由服务器解压替换 ${remoteRoot} 内的站点内容。操作不可恢复。`,
+      `确定将服务器站点回滚到历史版本「${row.sourceName}」吗？现有内容会被完整替换，此操作不可恢复。`,
       '确认回滚',
       {
         type: 'warning',
@@ -63,7 +63,7 @@ async function openRepublish(row: PublishRecord): Promise<void> {
 async function confirmApplyToProxy(row: PublishRecord): Promise<void> {
   try {
     await ElMessageBox.confirm(
-      `将清空本地代理目录 ${proxy.status?.rootDir ?? '.web'} 并应用历史版本「${row.sourceName}」（${row.artifactId}）。历史 ZIP 会保留。`,
+      `确定将本地预览内容替换为历史版本「${row.sourceName}」吗？当前预览内容会被覆盖，历史版本本身会保留。`,
       '应用到本地代理',
       {
         type: 'warning',
@@ -84,8 +84,8 @@ async function applyDetailToProxy(): Promise<void> {
 async function confirmDelete(row: PublishRecord): Promise<void> {
   const hint =
     row.kind === 'publish'
-      ? '该版本对应的本地归档（artifact.zip）若不再被其它记录引用，将一并删除。'
-      : '仅删除该回滚记录，目标版本的归档不会被删除。'
+      ? '若该版本不再被其它记录引用，对应的本地文件也会一并删除。'
+      : '仅删除这条记录，目标版本的文件会保留。'
   try {
     await ElMessageBox.confirm(
       `确定删除记录「${row.sourceName}」吗？删除后不可恢复。${hint}`,

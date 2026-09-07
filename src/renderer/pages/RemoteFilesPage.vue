@@ -48,11 +48,10 @@ function isProtected(entry: RemoteEntry): boolean {
 }
 
 async function confirmClearRoot(): Promise<void> {
-  const root = connection.config?.remoteRoot ?? remote.listing?.remotePath ?? '--'
   try {
     await ElMessageBox.confirm(
-      `将清空远程根目录「${root}」下的普通内容，仅保留 .ftppublisher 部署控制目录和已映射插件目录；插件目录需在插件管理页删除。该操作不进入回收站，无法恢复。`,
-      '确认清空远程根目录',
+      `确定清空服务器上的站点内容吗？已同步的插件会保留，其余内容将被永久删除，无法恢复。`,
+      '确认清空站点',
       {
         type: 'warning',
         confirmButtonText: '清空普通内容',
@@ -74,8 +73,8 @@ async function confirmDelete(entry: RemoteEntry): Promise<void> {
   const targetType = entry.type === 'directory' ? '目录及其中全部内容' : entry.type === 'link' ? '链接' : '文件'
   try {
     await ElMessageBox.confirm(
-      `确定永久删除远程${targetType}「${entry.path}」？该操作不进入回收站，无法恢复。`,
-      entry.type === 'directory' ? '确认递归删除目录' : '确认删除文件',
+      `确定永久删除该${targetType}「${entry.path}」？删除后无法恢复。`,
+      entry.type === 'directory' ? '确认删除目录' : '确认删除文件',
       {
         type: 'warning',
         confirmButtonText: '永久删除',
@@ -92,7 +91,7 @@ async function confirmDelete(entry: RemoteEntry): Promise<void> {
 async function confirmUpload(): Promise<void> {
   try {
     await ElMessageBox.confirm(
-      `文件将上传到「${remote.listing?.remotePath ?? '--'}」，同名远程文件会被直接覆盖。`,
+      '即将选择本地文件上传到当前目录，同名文件会被覆盖。',
       '上传文件到当前目录',
       {
         type: 'warning',

@@ -70,7 +70,7 @@ async function createPlugin(): Promise<void> {
   let name: string
   try {
     const result = await ElMessageBox.prompt(
-      '将在本地 plugins/ 下创建一个一级插件目录，创建后可打开目录放入文件。',
+      '创建一个新的插件目录，用于存放要发布的内容。',
       '新建插件',
       {
         confirmButtonText: '创建目录',
@@ -171,7 +171,7 @@ async function push(plugin: PluginSummary): Promise<void> {
   }
   try {
     await ElMessageBox.confirm(
-      `将把本地插件「${plugin.name}」的 ${plugin.totalFiles} 个文件上传到「${remoteRoot.value}/${plugin.remotePath}」。只覆盖同名文件，不清空其他远程内容，也不生成发布记录。`,
+      `即将把插件「${plugin.name}」的 ${plugin.totalFiles} 个文件同步到服务器。同名文件会被覆盖，其余内容不受影响。`,
       '确认推送插件',
       {
         type: 'warning',
@@ -210,7 +210,7 @@ async function deleteRemote(plugin: PluginSummary): Promise<void> {
   }
   try {
     await ElMessageBox.confirm(
-      `将检查插件「${plugin.name}」：远程目录存在时只删除远程内容；如果远程目录已经不存在，则永久删除本地 plugins/${plugin.name} 及其映射。`,
+      `确定删除插件「${plugin.name}」吗？服务器上的内容会被移除，本地文件视情况保留或一并删除。删除后不可恢复。`,
       '确认删除插件',
       {
         type: 'warning',

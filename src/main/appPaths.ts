@@ -35,7 +35,7 @@ export function deployScriptPath(): string {
     : path.join(resolveBaseDir(), 'resources', 'deploy.php')
 }
 
-/** 插件源目录：开发时为项目根 plugins，打包后由 extraFiles 放在 exe 同级 plugins。 */
-export function pluginRootPath(baseDir = resolveBaseDir()): string {
-  return path.join(baseDir, 'plugins')
+/** 插件源目录：跟随数据目录（绿色版在 exe 同级，安装版/解压版/mac 在 userData，开发在项目根） */
+export function pluginRootPath(dataDir = resolveDataDir()): string {
+  return path.join(dataDir, 'plugins')
 }

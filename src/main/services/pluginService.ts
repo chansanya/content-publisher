@@ -143,7 +143,7 @@ export class PluginService {
   }
 
   getRootDir(): string {
-    return pluginRootPath(this.deps.baseDir())
+    return pluginRootPath(this.deps.dataDir())
   }
 
   private async readPluginNames(): Promise<string[]> {

@@ -66,7 +66,7 @@ function onOpen(row: Row): void {
 async function confirmRestart(): Promise<void> {
   try {
     await ElMessageBox.confirm(
-      '重启后软件会中断当前进行中的任务。确定重启吗？',
+      '重启会中断正在进行中的任务。确定要重启吗？',
       '重启软件',
       {
         type: 'warning',
