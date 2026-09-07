@@ -58,8 +58,8 @@ export function validateRemoteRoot(raw: string): AppError | null {
   return null
 }
 
-/** 纯函数：从 .env 键值解析并校验完整配置 */
-export function parseEnvFields(raw: Record<string, string>, baseDir: string): EnvLoadResult {
+/** 纯函数：从 .env 键值解析并校验完整配置（baseDir 定位 .env，dataDir 定位数据目录） */
+export function parseEnvFields(raw: Record<string, string>, baseDir: string, dataDir: string): EnvLoadResult {
   const missing = REQUIRED_ENV_KEYS.filter((key) => !(raw[key] ?? '').trim())
   if (missing.length > 0) {
     return {
@@ -78,10 +78,8 @@ export function parseEnvFields(raw: Record<string, string>, baseDir: string): En
   const rootError = validateRemoteRoot(raw.FTP_REMOTE_ROOT)
   if (rootError) return { ok: false, error: rootError }
 
-  const recordDirRaw = (raw.PUBLISH_RECORD_DIR ?? '').trim()
-  const recordDir = recordDirRaw
-    ? path.resolve(baseDir, recordDirRaw)
-    : path.join(baseDir, DEFAULT_RECORD_DIR_NAME)
+  // 发布记录目录固定走数据目录，不再支持 .env 里的 PUBLISH_RECORD_DIR 配置
+  const recordDir = path.join(dataDir, DEFAULT_RECORD_DIR_NAME)
 
   return {
     ok: true,
@@ -104,7 +102,7 @@ export function parseEnvFields(raw: Record<string, string>, baseDir: string): En
 }
 
 /** 只读加载 .env（不污染 process.env），缺失或非法时返回带具体字段的错误 */
-export function loadEnvConfig(baseDir: string): EnvLoadResult {
+export function loadEnvConfig(baseDir: string, dataDir: string): EnvLoadResult {
   const envPath = path.join(baseDir, '.env')
   let text: string
   try {
@@ -119,7 +117,7 @@ export function loadEnvConfig(baseDir: string): EnvLoadResult {
       }
     }
   }
-  return parseEnvFields(parseEnvText(text), baseDir)
+  return parseEnvFields(parseEnvText(text), baseDir, dataDir)
 }
 
 /** 首次启动种子：baseDir 无 .env 时，用包内出厂默认值（default.env）写出一份，绝不覆盖已有配置 */

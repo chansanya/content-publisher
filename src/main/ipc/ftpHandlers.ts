@@ -12,7 +12,7 @@ import type {
   RemoteDownloadResult,
   RemoteUploadResult
 } from '@shared/types'
-import { resolveBaseDir, deployScriptPath } from '../appPaths'
+import { resolveBaseDir, resolveDataDir, deployScriptPath } from '../appPaths'
 import { loadEnvConfig } from '../services/envService'
 import { toAppError } from '../services/errors'
 import {
@@ -46,7 +46,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
   const getPluginPaths = async (): Promise<string[]> => (deps.pluginService ? deps.pluginService.getPluginPaths() : [])
 
   ipcMain.handle(IPC_CHANNELS.FtpTestConnection, async (): Promise<ApiResult<ConnectionTestResult>> => {
-    const result = loadEnvConfig(resolveBaseDir())
+    const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
     if (!result.ok) return { ok: false, error: result.error }
 
     const client = createFtpClient()
@@ -63,7 +63,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
   ipcMain.handle(
     IPC_CHANNELS.FtpListDir,
     async (_event, payload: unknown): Promise<ApiResult<RemoteDirectoryListing>> => {
-      const result = loadEnvConfig(resolveBaseDir())
+      const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
       if (!result.ok) return { ok: false, error: result.error }
       const relativePath = (payload as Record<string, unknown>)?.relativePath
       if (relativePath !== undefined && typeof relativePath !== 'string') {
@@ -84,7 +84,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
   ipcMain.handle(
     IPC_CHANNELS.FtpDelete,
     async (_event, payload: unknown): Promise<ApiResult<RemoteDeleteResult>> => {
-      const result = loadEnvConfig(resolveBaseDir())
+      const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
       if (!result.ok) return { ok: false, error: result.error }
       const relativePath = (payload as Record<string, unknown>)?.relativePath
       if (typeof relativePath !== 'string' || relativePath.trim() === '') {
@@ -145,7 +145,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
   )
 
   ipcMain.handle(IPC_CHANNELS.FtpSyncDeployRuntime, async (): Promise<ApiResult<null>> => {
-    const result = loadEnvConfig(resolveBaseDir())
+    const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
     if (!result.ok) return { ok: false, error: result.error }
     const config = result.data
     const log = (level: OperationLogEvent['level'], message: string): void => {
@@ -176,7 +176,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
   })
 
   ipcMain.handle(IPC_CHANNELS.FtpClearRoot, async (): Promise<ApiResult<RemoteClearResult>> => {
-    const result = loadEnvConfig(resolveBaseDir())
+    const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
     if (!result.ok) return { ok: false, error: result.error }
     const config = result.data
     const log = (level: OperationLogEvent['level'], message: string): void => {
@@ -248,7 +248,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
 
   /** 清理 .ftppublisher/incoming/ 下部署失败残留的 ZIP，保留目录本身；纯 FTP 操作，不依赖 deploy.php */
   ipcMain.handle(IPC_CHANNELS.FtpCleanIncoming, async (): Promise<ApiResult<RemoteCleanIncomingResult>> => {
-    const result = loadEnvConfig(resolveBaseDir())
+    const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
     if (!result.ok) return { ok: false, error: result.error }
     const config = result.data
     const log = (level: OperationLogEvent['level'], message: string): void => {
@@ -286,7 +286,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
   ipcMain.handle(
     IPC_CHANNELS.FtpDownload,
     async (_event, payload: unknown): Promise<ApiResult<RemoteDownloadResult | null>> => {
-      const result = loadEnvConfig(resolveBaseDir())
+      const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
       if (!result.ok) return { ok: false, error: result.error }
       const relativePath = (payload as Record<string, unknown>)?.relativePath
       if (typeof relativePath !== 'string' || relativePath.trim() === '') {
@@ -313,7 +313,7 @@ export function registerFtpHandlers(deps: FtpHandlerDeps): void {
   ipcMain.handle(
     IPC_CHANNELS.FtpUploadFiles,
     async (_event, payload: unknown): Promise<ApiResult<RemoteUploadResult | null>> => {
-      const result = loadEnvConfig(resolveBaseDir())
+      const result = loadEnvConfig(resolveBaseDir(), resolveDataDir())
       if (!result.ok) return { ok: false, error: result.error }
       const relativeDirectory = (payload as Record<string, unknown>)?.relativeDirectory
       if (relativeDirectory !== undefined && typeof relativeDirectory !== 'string') {

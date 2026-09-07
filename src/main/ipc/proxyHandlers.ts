@@ -3,7 +3,7 @@ import { IPC_CHANNELS } from '@shared/ipcChannels'
 import type { ApiResult, ApplyArtifactResult, ProxyReplacementResult, ProxyStatus } from '@shared/types'
 import type { ProxyService } from '../services/proxyService'
 import { ServiceError, toAppError } from '../services/errors'
-import { resolveBaseDir } from '../appPaths'
+import { resolveDataDir } from '../appPaths'
 import { applyReplacementsToDirectory, loadReplacements } from '../services/replacementService'
 
 function requireArtifactId(payload: unknown): string {
@@ -65,7 +65,7 @@ export function registerProxyHandlers(service: ProxyService): void {
   // 对本地代理目录内容原地应用替换规则（本地验证所见即发布所得）
   ipcMain.handle(IPC_CHANNELS.ProxyApplyReplacements, async (): Promise<ApiResult<ProxyReplacementResult>> => {
     try {
-      const config = await loadReplacements(resolveBaseDir())
+      const config = await loadReplacements(resolveDataDir())
       if (!config) throw new ServiceError('REPLACEMENTS_NOT_CONFIGURED', '尚未配置替换规则，请先在替换规则页新增')
       const stats = await applyReplacementsToDirectory(service.rootDir, config)
       return { ok: true, data: { files: stats.files, count: stats.count } }

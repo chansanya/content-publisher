@@ -4,7 +4,7 @@ import path from 'node:path'
 import type { FileReplacement, ReplacementConfig, ReplacementRule } from '@shared/types'
 import { ServiceError } from './errors'
 
-/** 规则文件与 .env 同目录，每次发布准备时现读，修改无需重启 */
+/** 规则文件位于数据目录，每次发布准备时现读，修改无需重启 */
 export const REPLACEMENTS_FILE_NAME = 'publish-replacements.json'
 
 export interface ReplacementStats {
@@ -46,7 +46,7 @@ export function validateReplacementConfig(config: ReplacementConfig): void {
 }
 
 /** 校验并归一化后写入规则文件，返回文件路径 */
-export function saveReplacements(baseDir: string, config: ReplacementConfig): string {
+export function saveReplacements(dataDir: string, config: ReplacementConfig): string {
   validateReplacementConfig(config)
   const normalized: ReplacementConfig = {
     global: config.global.map((rule) => ({ from: rule.from, to: rule.to })),
@@ -57,14 +57,14 @@ export function saveReplacements(baseDir: string, config: ReplacementConfig): st
       }))
       .filter((file) => file.path !== '' && file.rules.length > 0)
   }
-  const file = path.join(baseDir, REPLACEMENTS_FILE_NAME)
+  const file = path.join(dataDir, REPLACEMENTS_FILE_NAME)
   writeFileSync(file, JSON.stringify(normalized, null, 2), 'utf-8')
   return file
 }
 
 /** 加载替换规则；文件不存在返回 null（可选配置），存在但非法直接抛错 */
-export async function loadReplacements(baseDir: string): Promise<ReplacementConfig | null> {
-  const file = path.join(baseDir, REPLACEMENTS_FILE_NAME)
+export async function loadReplacements(dataDir: string): Promise<ReplacementConfig | null> {
+  const file = path.join(dataDir, REPLACEMENTS_FILE_NAME)
   let text: string
   try {
     text = await readFile(file, 'utf-8')

@@ -43,6 +43,8 @@ const STAGING_TTL_MS = 24 * 60 * 60 * 1000
 export interface PublishDeps {
   /** .env 查找基准目录（开发 = 项目根，打包 = 可执行文件同级） */
   baseDir: () => string
+  /** 数据目录（发布记录 / 本地代理 .web / 替换规则） */
+  dataDir: () => string
   sendProgress: (progress: UploadProgress) => void
   sendLog?: (event: OperationLogEvent) => void
   createClient?: () => FtpClientLike
@@ -84,7 +86,7 @@ export class PublishService {
   constructor(private readonly deps: PublishDeps) {}
 
   private mustConfig(): ResolvedConfig {
-    const result = loadEnvConfig(this.deps.baseDir())
+    const result = loadEnvConfig(this.deps.baseDir(), this.deps.dataDir())
     if (!result.ok) throw new ServiceError(result.error.code, result.error.message, result.error.detail)
     return result.data
   }
@@ -133,7 +135,7 @@ export class PublishService {
     let replacementStats: ReplacementStats = { files: 0, count: 0, hits: [] }
     try {
       if (isProxy) {
-        proxyRoot = path.join(this.deps.baseDir(), '.web')
+        proxyRoot = path.join(this.deps.dataDir(), '.web')
         if (!existsSync(proxyRoot) || !statSync(proxyRoot).isDirectory()) {
           throw new ServiceError('INPUT_INVALID', '本地代理目录不存在，请先在本地代理页应用版本', proxyRoot)
         }
@@ -149,7 +151,7 @@ export class PublishService {
         }
         sourceName = '本地代理'
       } else {
-        const replacements = await loadReplacements(this.deps.baseDir())
+        const replacements = await loadReplacements(this.deps.dataDir())
         if (input.type === 'directory') {
           if (!existsSync(sourcePath) || !statSync(sourcePath).isDirectory()) {
             throw new ServiceError('INPUT_INVALID', '仅支持有效的文件夹', sourcePath)

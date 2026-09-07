@@ -1,8 +1,9 @@
 import { app, BrowserWindow, dialog, nativeTheme } from 'electron'
 import path from 'node:path'
+import { existsSync, mkdirSync, renameSync } from 'node:fs'
 import { IPC_CHANNELS } from '@shared/ipcChannels'
 import type { OperationLogEvent } from '@shared/types'
-import { resolveBaseDir } from './appPaths'
+import { resolveBaseDir, resolveDataDir } from './appPaths'
 import { PublishService } from './services/publishService'
 import { ElectronPluginMappingStore, PluginService } from './services/pluginService'
 import { ElectronProxySettingsStore, ProxyService } from './services/proxyService'
@@ -14,6 +15,27 @@ let mainWindow: BrowserWindow | null = null
 let proxyService: ProxyService | null = null
 let pluginService: PluginService | null = null
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
+
+/**
+ * 旧数据迁移：安装版/解压版升级后，把 exe 同级的历史数据搬到 userData。
+ * 仅当新位置不存在同名目录/文件时才搬，绝不覆盖已有数据；便携版 baseDir === dataDir 自动跳过。
+ */
+function migrateLegacyData(baseDir: string, dataDir: string): void {
+  if (baseDir === dataDir) return
+  const names = ['historical', 'logs', '.web', 'publish-replacements.json']
+  for (const name of names) {
+    const from = path.join(baseDir, name)
+    const to = path.join(dataDir, name)
+    if (!existsSync(from) || existsSync(to)) continue
+    try {
+      mkdirSync(dataDir, { recursive: true })
+      renameSync(from, to)
+      console.log(`[fp] [info] [data] 已迁移旧数据: ${name} → ${to}`)
+    } catch (err) {
+      console.error(`[fp] [error] [data] 迁移 ${name} 失败:`, err)
+    }
+  }
+}
 
 /** 日志统一出口：文件记录全部级别；debug 仅落文件，终端与界面只出 info 及以上 */
 function dispatchLog(event: OperationLogEvent): void {
@@ -68,6 +90,7 @@ function createWindow(): void {
 
 const publishService = new PublishService({
   baseDir: resolveBaseDir,
+  dataDir: resolveDataDir,
   sendProgress: (progress) => {
     mainWindow?.webContents.send(IPC_CHANNELS.PublishProgress, progress)
   },
@@ -99,7 +122,10 @@ app.on('second-instance', () => {
 app.whenReady().then(async () => {
   if (!hasSingleInstanceLock) return
   nativeTheme.themeSource = 'dark'
-  await initLogFileService(resolveBaseDir())
+  const dataDir = resolveDataDir()
+  // 旧数据迁移：安装版/解压版把 exe 同级的历史数据搬到 userData，仅当新位置无数据时执行
+  migrateLegacyData(resolveBaseDir(), dataDir)
+  await initLogFileService(dataDir)
   // 安装/便携版首次启动：exe 同级无 .env 时用包内出厂默认值补一份（已有配置绝不覆盖）
   try {
     if (ensureEnvSeeded(resolveBaseDir(), path.join(__dirname, 'default.env'))) {
@@ -110,12 +136,13 @@ app.whenReady().then(async () => {
   }
   const userDataDir = app.getPath('userData')
   proxyService = new ProxyService({
-    rootDir: path.join(resolveBaseDir(), '.web'),
+    rootDir: path.join(dataDir, '.web'),
     settingsStore: new ElectronProxySettingsStore(userDataDir),
     resolveArtifact: (artifactId) => publishService.getVerifiedArtifact(artifactId)
   })
-  const activePluginService = new PluginService({
+  pluginService = new PluginService({
     baseDir: resolveBaseDir,
+    dataDir: resolveDataDir,
     mappingStore: new ElectronPluginMappingStore(userDataDir),
     sendProgress: (progress) => {
       mainWindow?.webContents.send(IPC_CHANNELS.PluginProgress, progress)
@@ -124,8 +151,7 @@ app.whenReady().then(async () => {
       dispatchLog(event)
     }
   })
-  pluginService = activePluginService
-  registerIpc(publishService, proxyService, activePluginService, {
+  registerIpc(publishService, proxyService, pluginService, {
     sendLog: (event) => {
       dispatchLog(event)
     }

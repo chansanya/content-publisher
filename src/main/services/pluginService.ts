@@ -51,6 +51,7 @@ export class ElectronPluginMappingStore implements PluginMappingStore {
 
 export interface PluginServiceDeps {
   baseDir: () => string
+  dataDir: () => string
   mappingStore?: PluginMappingStore
   sendProgress: (progress: PluginProgress) => void
   sendLog: (event: OperationLogEvent) => void
@@ -127,8 +128,8 @@ async function scanFiles(pluginDir: string): Promise<PluginFile[]> {
   return files
 }
 
-function mustConfig(baseDir: string): ResolvedConfig {
-  const result = loadEnvConfig(baseDir)
+function mustConfig(baseDir: string, dataDir: string): ResolvedConfig {
+  const result = loadEnvConfig(baseDir, dataDir)
   if (!result.ok) throw new ServiceError(result.error.code, result.error.message, result.error.detail)
   return result.data
 }
@@ -292,7 +293,7 @@ export class PluginService {
     const files = await scanFiles(pluginDir)
     if (files.length === 0) throw new ServiceError('PLUGIN_EMPTY', `插件目录为空: ${name}`)
 
-    const config = mustConfig(this.deps.baseDir())
+    const config = mustConfig(this.deps.baseDir(), this.deps.dataDir())
     const remotePath = this.mappingFor(name).remotePath
     const client = (this.deps.createClient ?? createFtpClient)()
     const log = (level: OperationLogEvent['level'], message: string): void => {
@@ -324,7 +325,7 @@ export class PluginService {
     if (otherPaths.some((item) => pluginPathsIntersect(remotePath, item))) {
       throw new ServiceError('PLUGIN_MAPPING_CONFLICT', '该插件路径包含其他插件映射，不能单独删除')
     }
-    const config = mustConfig(this.deps.baseDir())
+    const config = mustConfig(this.deps.baseDir(), this.deps.dataDir())
     const remoteDirectory = resolveRemotePath(config.remoteRoot, remotePath)
     const client = (this.deps.createClient ?? createFtpClient)()
     const log = (level: OperationLogEvent['level'], message: string): void => {

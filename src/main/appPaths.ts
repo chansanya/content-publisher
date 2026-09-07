@@ -14,6 +14,20 @@ export function resolveBaseDir(): string {
   return process.env.PORTABLE_EXECUTABLE_DIR || path.dirname(process.execPath)
 }
 
+/**
+ * 数据目录（发布记录/日志/本地代理/替换规则）：
+ * - 开发环境：项目根目录
+ * - Windows 便携版：PORTABLE_EXECUTABLE_DIR，数据随 exe 走，不与其他版本共享
+ * - 安装版/解压版/macOS：userData（共享，升级不丢）
+ */
+export function resolveDataDir(): string {
+  if (!app.isPackaged) return app.getAppPath()
+  if (process.platform === 'win32' && process.env.PORTABLE_EXECUTABLE_DIR) {
+    return process.env.PORTABLE_EXECUTABLE_DIR
+  }
+  return app.getPath('userData')
+}
+
 /** 本地服务端部署脚本路径：打包后随 resources 分发 */
 export function deployScriptPath(): string {
   return app.isPackaged
