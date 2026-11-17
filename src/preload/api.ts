@@ -1,5 +1,6 @@
 import type {
   ApiResult,
+  UpdateCheckResult,
   ConnectionTestResult,
   FtpConfigView,
   OperationLogEvent,
@@ -23,6 +24,13 @@ import type {
   PluginProgress,
   PluginPushResult,
   PluginSummary,
+  CertificateCredentialInput,
+  CertificateMonitorSettings,
+  CertificateMonitorStatus,
+  CertificateApplicationDetail,
+  CertificateCloudResource,
+  CertificateExecuteInput,
+  CertificateProgressEvent,
   UploadProgress
 } from '@shared/types'
 
@@ -39,6 +47,8 @@ export interface FtpApi {
   openWeb(): Promise<ApiResult<true>>
   restartApp(): Promise<ApiResult<true>>
   getAppVersion(): Promise<ApiResult<string>>
+  checkForUpdate(): Promise<ApiResult<UpdateCheckResult>>
+  openReleases(): Promise<ApiResult<true>>
   testConnection(): Promise<ApiResult<ConnectionTestResult>>
   listRemoteDir(relativePath?: string): Promise<ApiResult<RemoteDirectoryListing>>
   deleteRemoteEntry(relativePath: string): Promise<ApiResult<RemoteDeleteResult>>
@@ -75,4 +85,20 @@ export interface FtpApi {
   applyProxyReplacements(): Promise<ApiResult<ProxyReplacementResult>>
   openProxySite(): Promise<ApiResult<true>>
   openProxyRoot(): Promise<ApiResult<true>>
+  getCertificateStatus(): Promise<ApiResult<CertificateMonitorStatus>>
+  saveCertificateSettings(settings: CertificateMonitorSettings): Promise<ApiResult<CertificateMonitorStatus>>
+  saveCertificateCredentials(input: CertificateCredentialInput): Promise<ApiResult<CertificateMonitorStatus>>
+  clearCertificateCredentials(): Promise<ApiResult<CertificateMonitorStatus>>
+  checkCertificateNow(): Promise<ApiResult<CertificateMonitorStatus>>
+  refreshCertificateList(): Promise<ApiResult<CertificateMonitorStatus>>
+  applyCertificate(input: { instanceId: string; domain: string }): Promise<ApiResult<{ status: CertificateMonitorStatus; details?: CertificateApplicationDetail }>>
+  inspectCertificateApplication(instanceId: string): Promise<ApiResult<{ status: CertificateMonitorStatus; details?: CertificateApplicationDetail }>>
+  clearCertificateApplicationUncertainty(instanceId: string): Promise<ApiResult<CertificateMonitorStatus>>
+  resumeCertificateDeployment(): Promise<ApiResult<CertificateMonitorStatus>>
+  stopCertificateTask(): Promise<ApiResult<CertificateMonitorStatus>>
+  endCertificateTask(): Promise<ApiResult<CertificateMonitorStatus>>
+  listCertificateResources(): Promise<ApiResult<{ status: CertificateMonitorStatus; resources?: CertificateCloudResource[] }>>
+  executeSelectedCertificate(input: CertificateExecuteInput): Promise<ApiResult<CertificateMonitorStatus>>
+  openCertificateConsole(): Promise<ApiResult<true>>
+  onCertificateProgress(callback: (event: CertificateProgressEvent) => void): () => void
 }

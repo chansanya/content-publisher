@@ -1,6 +1,6 @@
 {
   "name": "ftp-publisher",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "内容发布工具 - Windows x64 FTP 完整版本发布与回滚工具",
   "main": "dist/main/index.js",
   "author": "lhy",
@@ -12,12 +12,15 @@
   "scripts": {
     "dev": "node scripts/dev.mjs",
     "build": "vite build -c vite.main.config.ts && vite build -c vite.preload.config.ts && vite build",
+    "test:certificate": "node scripts/test-certificate.mjs",
     "dist:win": "npm run build && electron-builder --win --x64",
     "dist:zip": "npm run build && electron-builder --win zip --x64",
     "release": "gh workflow run build --ref master",
     "release:watch": "gh run watch --exit-status"
   },
   "dependencies": {
+    "@alicloud/cas20200407": "^3.2.17",
+    "@alicloud/openapi-core": "^1.0.9",
     "adm-zip": "^0.5.16",
     "archiver": "^7.0.1",
     "basic-ftp": "^5.0.5",
@@ -37,7 +40,9 @@
     "@vitejs/plugin-vue": "^5.1.2",
     "electron": "^31.3.0",
     "electron-builder": "^24.13.3",
+    "esbuild": "0.21.5",
     "typescript": "^5.5.4",
-    "vite": "^5.4.2"
+    "vite": "^5.4.2",
+    "vue-tsc": "^2.0.29"
   }
 }

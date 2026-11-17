@@ -8,4 +8,5 @@ release/
 Thumbs.db
 .web/
 publish-replacements.json
+certificate-monitor.json
 plugins/**/mailer-config.php

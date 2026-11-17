@@ -1,7 +1,15 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import type { IpcRendererEvent } from 'electron'
 import { IPC_CHANNELS } from '@shared/ipcChannels'
-import type { ApiResult, OperationLogEvent, PluginProgress, UploadProgress } from '@shared/types'
+import type {
+  ApiResult,
+  CertificateCredentialInput,
+  CertificateMonitorSettings,
+  CertificateProgressEvent,
+  OperationLogEvent,
+  PluginProgress,
+  UploadProgress
+} from '@shared/types'
 import type { FtpApi, PrepareInput } from './api'
 
 function invoke<T>(channel: string, arg?: unknown): Promise<ApiResult<T>> {
@@ -18,6 +26,8 @@ const api: FtpApi = {
   openWeb: () => invoke(IPC_CHANNELS.ConfigOpenWeb),
   restartApp: () => invoke(IPC_CHANNELS.AppRestart),
   getAppVersion: () => invoke(IPC_CHANNELS.AppGetVersion),
+  checkForUpdate: () => invoke(IPC_CHANNELS.AppCheckUpdate),
+  openReleases: () => invoke(IPC_CHANNELS.AppOpenReleases),
   testConnection: () => invoke(IPC_CHANNELS.FtpTestConnection),
   listRemoteDir: (relativePath = '') => invoke(IPC_CHANNELS.FtpListDir, { relativePath }),
   deleteRemoteEntry: (relativePath: string) => invoke(IPC_CHANNELS.FtpDelete, { relativePath }),
@@ -52,6 +62,23 @@ const api: FtpApi = {
   applyProxyReplacements: () => invoke(IPC_CHANNELS.ProxyApplyReplacements),
   openProxySite: () => invoke(IPC_CHANNELS.ProxyOpenSite),
   openProxyRoot: () => invoke(IPC_CHANNELS.ProxyOpenRoot),
+  getCertificateStatus: () => invoke(IPC_CHANNELS.CertificateGetStatus),
+  saveCertificateSettings: (settings: CertificateMonitorSettings) =>
+    invoke(IPC_CHANNELS.CertificateSaveSettings, settings),
+  saveCertificateCredentials: (input: CertificateCredentialInput) =>
+    invoke(IPC_CHANNELS.CertificateSaveCredentials, input),
+  clearCertificateCredentials: () => invoke(IPC_CHANNELS.CertificateClearCredentials),
+  checkCertificateNow: () => invoke(IPC_CHANNELS.CertificateCheckNow),
+  refreshCertificateList: () => invoke(IPC_CHANNELS.CertificateRefreshList),
+  applyCertificate: (input: { instanceId: string; domain: string }) => invoke(IPC_CHANNELS.CertificateApply, input),
+  inspectCertificateApplication: (instanceId: string) => invoke(IPC_CHANNELS.CertificateInspectApplication, instanceId),
+  clearCertificateApplicationUncertainty: (instanceId: string) => invoke(IPC_CHANNELS.CertificateClearApplicationUncertainty, instanceId),
+  resumeCertificateDeployment: () => invoke(IPC_CHANNELS.CertificateResumeDeployment),
+  stopCertificateTask: () => invoke(IPC_CHANNELS.CertificateStopTask),
+  endCertificateTask: () => invoke(IPC_CHANNELS.CertificateEndTask),
+  listCertificateResources: () => invoke(IPC_CHANNELS.CertificateListResources),
+  executeSelectedCertificate: (input) => invoke(IPC_CHANNELS.CertificateExecuteSelected, input),
+  openCertificateConsole: () => invoke(IPC_CHANNELS.CertificateOpenConsole),
   onProgress: (callback) => {
     const listener = (_event: IpcRendererEvent, progress: UploadProgress): void => callback(progress)
     ipcRenderer.on(IPC_CHANNELS.PublishProgress, listener)
@@ -66,6 +93,11 @@ const api: FtpApi = {
     const listener = (_event: IpcRendererEvent, progress: PluginProgress): void => callback(progress)
     ipcRenderer.on(IPC_CHANNELS.PluginProgress, listener)
     return () => ipcRenderer.removeListener(IPC_CHANNELS.PluginProgress, listener)
+  },
+  onCertificateProgress: (callback) => {
+    const listener = (_event: IpcRendererEvent, progress: CertificateProgressEvent): void => callback(progress)
+    ipcRenderer.on(IPC_CHANNELS.CertificateProgress, listener)
+    return () => ipcRenderer.removeListener(IPC_CHANNELS.CertificateProgress, listener)
   }
 }
 

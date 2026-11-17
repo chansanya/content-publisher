@@ -21,10 +21,16 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: AppError }
 
+export interface UpdateCheckResult {
+  currentVersion: string
+  latestVersion: string
+  available: boolean
+}
+
 export interface OperationLogEvent {
   /** debug 仅落日志文件，终端与界面只显示 info 及以上 */
   level: 'debug' | 'info' | 'success' | 'warn' | 'error'
-  scope: 'publish' | 'remote' | 'plugin' | 'env'
+  scope: 'publish' | 'remote' | 'plugin' | 'env' | 'certificate'
   message: string
 }
 
@@ -251,4 +257,141 @@ export interface ApplyArtifactResult {
   totalFiles: number
   rootDir: string
   restarted: boolean
+}
+
+export type CertificateAutomationState =
+  | 'idle'
+  | 'checking'
+  | 'deploying'
+  | 'verifying'
+  | 'succeeded'
+  | 'failed'
+  | 'stopped'
+
+export interface CertificateMonitorSettings {
+  enabled: boolean
+  domain: string
+  checkHour: number
+  warningDays: number
+  deploymentResourceIds?: number[]
+}
+
+export interface CertificateCredentialInput {
+  accessKeyId: string
+  accessKeySecret: string
+}
+
+export interface CertificateSnapshot {
+  domain: string
+  subject: string
+  issuer: string
+  serialNumber: string
+  fingerprint256: string
+  validFrom: string
+  validTo: string
+  remainingDays: number
+  checkedAt: string
+}
+
+export interface CertificateInstanceSummary {
+  instanceId: string
+  name: string
+  status: string
+  domain: string
+  certificateId?: number
+  certificateStatus?: string
+  certificateExpiresAt?: string
+  available?: boolean
+  subscriptionExpiresAt?: string
+}
+
+export interface CertificateDnsInstruction {
+  domain: string
+  rootDomain: string
+  type: string
+  name: string
+  value: string
+}
+
+export interface CertificateApplicationDetail {
+  instanceId: string
+  domain: string
+  status: string
+  certificateStatus: string
+  certificateId?: number
+  certificateExpiresAt?: string
+  validationMethod: string
+  available: boolean
+  hasValidation: boolean
+  records: CertificateDnsInstruction[]
+}
+
+export interface CertificateApplicationAttempt {
+  instanceId: string
+  domain: string
+  phase: 'configuring' | 'configured' | 'submitting' | 'submitted' | 'uncertain' | 'cleared'
+  updatedAt: string
+}
+
+export interface CertificateAutomationRecord {
+  state: CertificateAutomationState
+  paused?: boolean
+  mode?: 'renewal' | 'deploy-existing'
+  deploymentResourceIds?: number[]
+  deploymentDomains?: string[]
+  expectedSerial?: string
+  expectedValidTo?: string
+  domain?: string
+  sourceSerial?: string
+  sourceFingerprint?: string
+  sourceValidTo?: string
+  applicationPending?: boolean
+  orderId?: number
+  instanceId?: string
+  certificateId?: string
+  deploymentJobId?: number
+  deploymentStarted?: boolean
+  deploymentPending?: boolean
+  expectedFingerprint?: string
+  lastCheckAt?: string
+  nextCheckAt?: string
+  updatedAt?: string
+  lastError?: AppError
+}
+
+export interface CertificateMonitorStatus {
+  settings: CertificateMonitorSettings
+  credentialsConfigured: boolean
+  accessKeyIdMasked: string
+  certificate?: CertificateSnapshot
+  certificates?: CertificateInstanceSummary[]
+  applications?: CertificateApplicationAttempt[]
+  automation: CertificateAutomationRecord
+  busy: boolean
+  settling?: boolean
+  operation?: 'monitor' | 'deploy' | 'apply' | 'inspect' | 'refresh' | 'resources'
+}
+
+export interface CertificateCloudResource {
+  id: number
+  domain: string
+  regionId: string
+  instanceId?: string
+  certificateId?: number
+  certificateName?: string
+  certificateEndTime?: string
+}
+
+export interface CertificateExecuteInput {
+  instanceId: string
+  resourceIds: number[]
+  certificateId: number
+  resourceDomains?: string[]
+}
+
+export interface CertificateProgressEvent {
+  state: CertificateAutomationState
+  message: string
+  updatedAt: string
+  status: CertificateMonitorStatus
 }

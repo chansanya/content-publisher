@@ -8,6 +8,9 @@ import { registerProxyHandlers } from './proxyHandlers'
 import { registerReplacementHandlers } from './replacementHandlers'
 import { registerPluginHandlers } from './pluginHandlers'
 import type { PluginService } from '../services/pluginService'
+import type { CertificateService } from '../services/certificateService'
+import type { CertificateScheduler } from '../services/certificateScheduler'
+import { registerCertificateHandlers } from './certificateHandlers'
 
 export interface IpcLogDeps {
   sendLog: (event: OperationLogEvent) => void
@@ -17,6 +20,8 @@ export function registerIpc(
   publishService: PublishService,
   proxyService: ProxyService,
   pluginService: PluginService,
+  certificateService: CertificateService,
+  certificateScheduler: CertificateScheduler,
   deps: IpcLogDeps
 ): void {
   registerConfigHandlers()
@@ -25,4 +30,5 @@ export function registerIpc(
   registerProxyHandlers(proxyService)
   registerReplacementHandlers()
   registerPluginHandlers(pluginService)
+  registerCertificateHandlers(certificateService, certificateScheduler)
 }

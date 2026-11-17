@@ -10,10 +10,14 @@ import { ElectronProxySettingsStore, ProxyService } from './services/proxyServic
 import { ensureEnvSeeded } from './services/envService'
 import { registerIpc } from './ipc/registerIpc'
 import { appendLogFile, initLogFileService } from './services/logFileService'
+import { CertificateService } from './services/certificateService'
+import { CertificateScheduler } from './services/certificateScheduler'
 
 let mainWindow: BrowserWindow | null = null
 let proxyService: ProxyService | null = null
 let pluginService: PluginService | null = null
+let certificateService: CertificateService | null = null
+let certificateScheduler: CertificateScheduler | null = null
 const hasSingleInstanceLock = app.requestSingleInstanceLock()
 
 /**
@@ -151,7 +155,17 @@ app.whenReady().then(async () => {
       dispatchLog(event)
     }
   })
-  registerIpc(publishService, proxyService, pluginService, {
+  certificateService = new CertificateService({
+    baseDir: resolveBaseDir,
+    dataDir: resolveDataDir,
+    sendLog: dispatchLog,
+    sendProgress: (progress) => {
+      mainWindow?.webContents.send(IPC_CHANNELS.CertificateProgress, progress)
+    }
+  })
+  certificateService.initializeDomainFromEnv()
+  certificateScheduler = new CertificateScheduler(certificateService, dispatchLog)
+  registerIpc(publishService, proxyService, pluginService, certificateService, certificateScheduler, {
     sendLog: (event) => {
       dispatchLog(event)
     }
@@ -163,6 +177,7 @@ app.whenReady().then(async () => {
   }
 
   createWindow()
+  certificateScheduler.start()
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) createWindow()
@@ -174,6 +189,7 @@ app.on('window-all-closed', () => {
 })
 
 app.on('will-quit', () => {
+  certificateScheduler?.stop()
   publishService.dispose()
   proxyService?.dispose()
 })

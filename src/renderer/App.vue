@@ -10,6 +10,7 @@ import ReplacementsPage from './pages/ReplacementsPage.vue'
 import ProxyPage from './pages/ProxyPage.vue'
 import PluginPage from './pages/PluginPage.vue'
 import SettingsPage from './pages/SettingsPage.vue'
+import CertificatePage from './pages/CertificatePage.vue'
 import { useUiStore } from './stores/ui'
 import type { PageName } from './stores/ui'
 import { useConnectionStore } from './stores/connection'
@@ -44,6 +45,10 @@ const HEADS: Record<PageName, { eyebrow: string; title: string }> = {
     eyebrow: 'Plugins',
     title: '插件管理'
   },
+  certificate: {
+    eyebrow: 'Certificate Monitor',
+    title: '证书监控'
+  },
   settings: {
     eyebrow: 'Settings',
     title: '设置'
@@ -59,6 +64,7 @@ const PAGES: Record<PageName, Component> = {
   replacements: ReplacementsPage,
   proxy: ProxyPage,
   plugins: PluginPage,
+  certificate: CertificatePage,
   settings: SettingsPage
 }
 

@@ -1,7 +1,7 @@
 import { ref } from 'vue'
 import { defineStore } from 'pinia'
 
-export type PageName = 'remote' | 'publish' | 'replacements' | 'records' | 'proxy' | 'plugins' | 'settings'
+export type PageName = 'remote' | 'publish' | 'replacements' | 'records' | 'proxy' | 'plugins' | 'certificate' | 'settings'
 
 export const useUiStore = defineStore('ui', () => {
   const currentPage = ref<PageName>('publish')

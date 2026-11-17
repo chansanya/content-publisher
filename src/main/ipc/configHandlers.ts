@@ -1,6 +1,7 @@
 import { app, clipboard, ipcMain, shell } from 'electron'
 import { IPC_CHANNELS } from '@shared/ipcChannels'
-import type { ApiResult, FtpConfigView } from '@shared/types'
+import type { ApiResult, FtpConfigView, UpdateCheckResult } from '@shared/types'
+import { isNewerStableVersion } from '@shared/updateVersion'
 import { resolveBaseDir, resolveDataDir } from '../appPaths'
 import { loadEnvConfig, toConfigView } from '../services/envService'
 import { toAppError } from '../services/errors'
@@ -105,6 +106,30 @@ export function registerConfigHandlers(): void {
   // 应用版本号：来自主进程 package.json（app.getVersion），渲染进程不硬编码
   ipcMain.handle(IPC_CHANNELS.AppGetVersion, (): ApiResult<string> => {
     return { ok: true, data: app.getVersion() }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.AppCheckUpdate, async (): Promise<ApiResult<UpdateCheckResult>> => {
+    try {
+      const response = await fetch('https://api.github.com/repos/chansanya/content-publisher/releases/latest', {
+        headers: { Accept: 'application/vnd.github+json', 'User-Agent': 'content-publisher' },
+        signal: AbortSignal.timeout(10000)
+      })
+      if (!response.ok) throw new Error(`GitHub HTTP ${response.status}`)
+      const release: unknown = await response.json()
+      if (!release || typeof release !== 'object' || !('tag_name' in release) || typeof release.tag_name !== 'string') throw new Error('发布信息缺少版本号')
+      const currentVersion = app.getVersion()
+      const latestVersion = release.tag_name.replace(/^v/, '')
+      return { ok: true, data: { currentVersion, latestVersion, available: isNewerStableVersion(currentVersion, latestVersion) } }
+    } catch (err) {
+      return { ok: false, error: { code: 'UPDATE_CHECK_FAILED', message: '检查更新失败，请检查网络后重试', detail: err instanceof Error ? err.message : String(err) } }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.AppOpenReleases, async (): Promise<ApiResult<true>> => {
+    try {
+      await shell.openExternal('https://github.com/chansanya/content-publisher/releases/latest')
+      return { ok: true, data: true }
+    } catch (err) { return { ok: false, error: toAppError(err) } }
   })
 
   ipcMain.handle(IPC_CHANNELS.AppRestart, (): ApiResult<true> => {

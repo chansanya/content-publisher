@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, watch } from 'vue'
-import { CloudUpload, FolderTree, Globe2, History, HardDriveUpload, PackageOpen, Replace, Settings } from 'lucide-vue-next'
+import { CloudUpload, FolderTree, Globe2, History, HardDriveUpload, PackageOpen, RefreshCw, Replace, Settings, ShieldCheck } from 'lucide-vue-next'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { useUiStore } from '@renderer/stores/ui'
 import { useConnectionStore } from '@renderer/stores/connection'
 import type { PageName } from '@renderer/stores/ui'
@@ -14,7 +15,8 @@ const items: { key: PageName; label: string; icon: typeof CloudUpload; requiresC
   { key: 'remote', label: '远程文件', icon: FolderTree, requiresConnection: true },
   { key: 'records', label: '发布记录', icon: History },
   { key: 'proxy', label: '本地代理', icon: Globe2 },
-  { key: 'plugins', label: '插件管理', icon: PackageOpen, requiresConnection: true }
+  { key: 'plugins', label: '插件管理', icon: PackageOpen, requiresConnection: true },
+  { key: 'certificate', label: '证书监控', icon: ShieldCheck }
 ]
 
 const visibleItems = computed(() =>
@@ -30,7 +32,21 @@ watch(
 
 onMounted(() => {
   void ui.loadVersion()
+  void checkUpdates(false)
 })
+
+async function checkUpdates(manual: boolean): Promise<void> {
+  try {
+    const result = await window.ftpApi.checkForUpdate()
+    if (!result.ok) { if (manual) ElMessage.error(result.error.message); return }
+    if (!result.data.available) { if (manual) ElMessage.success('当前已是最新版本'); return }
+    try {
+      await ElMessageBox.confirm(`发现新版本 v${result.data.latestVersion}，当前版本 v${result.data.currentVersion}。前往下载页面选择对应版本？`, '发现新版本', { type: 'info', confirmButtonText: '前往下载', cancelButtonText: '稍后' })
+    } catch { return }
+    const opened = await window.ftpApi.openReleases()
+    if (!opened.ok) ElMessage.error(opened.error.message)
+  } catch { if (manual) ElMessage.error('检查更新失败，请稍后重试') }
+}
 </script>
 
 <template>
@@ -65,6 +81,6 @@ onMounted(() => {
       <span>设置</span>
     </button>
 
-    <div class="nav-foot">v{{ ui.appVersion || '…' }}</div>
+    <div class="nav-foot">v{{ ui.appVersion || '…' }} <el-tooltip content="检查更新" placement="top"><el-button text aria-label="检查更新" @click="checkUpdates(true)"><RefreshCw :size="14" /></el-button></el-tooltip></div>
   </aside>
 </template>

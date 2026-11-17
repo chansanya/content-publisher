@@ -9,6 +9,8 @@ export const IPC_CHANNELS = {
   ConfigOpenWeb: 'config:openWeb',
   AppRestart: 'app:restart',
   AppGetVersion: 'app:getVersion',
+  AppCheckUpdate: 'app:checkUpdate',
+  AppOpenReleases: 'app:openReleases',
   FtpTestConnection: 'ftp:testConnection',
   FtpListDir: 'ftp:listDir',
   FtpDelete: 'ftp:delete',
@@ -44,7 +46,23 @@ export const IPC_CHANNELS = {
   ProxyApplyArtifact: 'proxy:applyArtifact',
   ProxyApplyReplacements: 'proxy:applyReplacements',
   ProxyOpenSite: 'proxy:openSite',
-  ProxyOpenRoot: 'proxy:openRoot'
+  ProxyOpenRoot: 'proxy:openRoot',
+  CertificateGetStatus: 'certificate:getStatus',
+  CertificateSaveSettings: 'certificate:saveSettings',
+  CertificateSaveCredentials: 'certificate:saveCredentials',
+  CertificateClearCredentials: 'certificate:clearCredentials',
+  CertificateCheckNow: 'certificate:checkNow',
+  CertificateRefreshList: 'certificate:refreshList',
+  CertificateApply: 'certificate:apply',
+  CertificateInspectApplication: 'certificate:inspectApplication',
+  CertificateClearApplicationUncertainty: 'certificate:clearApplicationUncertainty',
+  CertificateResumeDeployment: 'certificate:resumeDeployment',
+  CertificateStopTask: 'certificate:stopTask',
+  CertificateEndTask: 'certificate:endTask',
+  CertificateListResources: 'certificate:listResources',
+  CertificateExecuteSelected: 'certificate:executeSelected',
+  CertificateOpenConsole: 'certificate:openConsole',
+  CertificateProgress: 'certificate:progress'
 } as const
 
 export type IpcChannel = (typeof IPC_CHANNELS)[keyof typeof IPC_CHANNELS]

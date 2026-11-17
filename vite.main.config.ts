@@ -39,7 +39,13 @@ export default defineConfig({
     emptyOutDir: true,
     minify: false,
     sourcemap: true,
-    rollupOptions: { external }
+    rollupOptions: {
+      external,
+      output: {
+        // 阿里云 SDK 的 CommonJS 构造函数位于 exports.default。
+        interop: (id) => id === '@alicloud/cas20200407' ? 'auto' : 'default'
+      }
+    }
   },
   plugins: [seedDefaultEnv()]
 })
