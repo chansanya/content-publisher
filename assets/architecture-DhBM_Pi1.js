@@ -1,0 +1,18 @@
+import{i as e,r as t,s as n,t as r}from"./app-Gy3AO1VQ.js";var i=JSON.parse(`{"path":"/guide/architecture.html","title":"工程结构与数据目录","lang":"zh-CN","frontmatter":{},"git":{"updatedTime":1794907638000,"contributors":[{"name":"lhy","username":"lhy","email":"984038622@qq.com","commits":1,"url":"https://github.com/lhy"}],"changelog":[{"hash":"7c732ace7d27b094c2d643c7c1eff95c873bb2c7","time":1794907638000,"email":"984038622@qq.com","author":"lhy","message":"docs: 新增 VuePress 文档站点与 GitHub Pages 部署"}]},"filePathRelative":"guide/architecture.md"}`),a={name:`architecture.md`};function o(r,i,a,o,s,c){return n(),t(`div`,null,[...i[0]||=[e(`<h1 id="工程结构与数据目录" tabindex="-1"><a class="header-anchor" href="#工程结构与数据目录"><span>工程结构与数据目录</span></a></h1><h2 id="核心发布模型" tabindex="-1"><a class="header-anchor" href="#核心发布模型"><span>核心发布模型</span></a></h2><div class="language-text line-numbers-mode" data-highlighter="prismjs" data-ext="text"><pre><code class="language-text"><span class="line">选择文件夹或 ZIP</span>
+<span class="line">→ 文件夹先复制快照，统一生成标准 ZIP 归档</span>
+<span class="line">→ FTP 上传单个 ZIP 与部署脚本</span>
+<span class="line">→ 调用受密钥保护的 PHP 接口</span>
+<span class="line">→ 服务器本地解压并替换站点内容</span>
+<span class="line">→ 保存发布结果</span>
+<span class="line"></span></code></pre><div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0;"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>固定远程目录是独占部署槽位。服务端发布时保留 <code>.ftppublisher</code> 控制目录和已同步插件目录，其余内容会被目标 ZIP 完整替换。回滚复用历史 ZIP，走同一套服务器端解压流程。</p><h2 id="工程结构" tabindex="-1"><a class="header-anchor" href="#工程结构"><span>工程结构</span></a></h2><div class="language-text line-numbers-mode" data-highlighter="prismjs" data-ext="text"><pre><code class="language-text"><span class="line">src/</span>
+<span class="line">├─ main/        主进程：env / ftp / artifact / server deploy / record / publish / proxy / plugin 服务</span>
+<span class="line">├─ preload/     contextBridge 白名单桥接（contextIsolation 开启，nodeIntegration 关闭）</span>
+<span class="line">├─ renderer/    Vue 3 + Pinia + Element Plus（连接 / 远程文件 / 发布 / 记录 / 代理页面 + 全局日志）</span>
+<span class="line">└─ shared/      跨进程类型、IPC 通道、常量</span>
+<span class="line"></span></code></pre><div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0;"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><h2 id="数据目录" tabindex="-1"><a class="header-anchor" href="#数据目录"><span>数据目录</span></a></h2><div class="language-text line-numbers-mode" data-highlighter="prismjs" data-ext="text"><pre><code class="language-text"><span class="line">historical/</span>
+<span class="line">├─ index.json                # 记录索引（electron-store）</span>
+<span class="line">└─ artifacts/</span>
+<span class="line">   └─ &lt;releaseId&gt;/</span>
+<span class="line">      ├─ artifact.zip        # 不可变本地版本</span>
+<span class="line">      └─ manifest.json       # 文件清单（路径 / 大小 / 总量）</span>
+<span class="line"></span></code></pre><div class="line-numbers" aria-hidden="true" style="counter-reset:line-number 0;"><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div><div class="line-number"></div></div></div><p>本地版本默认永久保留。异常退出后遗留的进行中任务会在下次启动时标记为 <code>interrupted</code>。</p>`,9)]])}var s=r(a,[[`render`,o]]);export{i as _pageData,s as default};
