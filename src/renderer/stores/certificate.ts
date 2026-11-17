@@ -136,7 +136,7 @@ export const useCertificateStore = defineStore('certificate', () => {
     resourcesKnown.value = false
     resources.value = []
     status.value = data
-    ElMessage.success('阿里云 AccessKey 已加密保存')
+    ElMessage.success('阿里云 AccessKey 已保存到 .env，请妥善保管')
     return true
   }
 

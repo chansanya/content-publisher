@@ -65,7 +65,7 @@ export class CertificateService {
       settings: this.store.getSettings(),
       credentialsConfigured: this.store.credentialsConfigured(),
       accessKeyIdMasked: this.store.accessKeyIdMasked(),
-      certificate: this.store.getCertificate(),
+      certificate: this.store.getCertificate()?.domain === this.store.getSettings().domain ? this.store.getCertificate() : undefined,
       certificates: this.store.getCertificates(),
       applications: this.store.getApplicationAttempts(),
       automation: this.store.getAutomation(),

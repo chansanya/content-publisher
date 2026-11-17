@@ -8,6 +8,7 @@ import { PublishService } from './services/publishService'
 import { ElectronPluginMappingStore, PluginService } from './services/pluginService'
 import { ElectronProxySettingsStore, ProxyService } from './services/proxyService'
 import { ensureEnvSeeded } from './services/envService'
+import { migrateEnvFile } from './services/envFileService'
 import { registerIpc } from './ipc/registerIpc'
 import { appendLogFile, initLogFileService } from './services/logFileService'
 import { CertificateService } from './services/certificateService'
@@ -130,9 +131,12 @@ app.whenReady().then(async () => {
   // 旧数据迁移：安装版/解压版把 exe 同级的历史数据搬到 userData，仅当新位置无数据时执行
   migrateLegacyData(resolveBaseDir(), dataDir)
   await initLogFileService(dataDir)
-  // 安装/便携版首次启动：exe 同级无 .env 时用包内出厂默认值补一份（已有配置绝不覆盖）
+  // 先复制旧配置，再按需生成默认配置；不覆盖或删除旧文件。
   try {
-    if (ensureEnvSeeded(resolveBaseDir(), path.join(__dirname, 'default.env'))) {
+    if (migrateEnvFile(resolveBaseDir(), dataDir)) {
+      dispatchLog({ level: 'info', scope: 'env', message: '已将旧 .env 复制到数据目录，原文件保留' })
+    }
+    if (ensureEnvSeeded(dataDir, path.join(__dirname, 'default.env'))) {
       dispatchLog({ level: 'info', scope: 'env', message: '未发现 .env，已按出厂默认值生成配置文件' })
     }
   } catch (err) {

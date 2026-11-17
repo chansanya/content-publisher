@@ -36,7 +36,7 @@ npm run dev          # 开发模式（构建主进程 + Vite 热更新 + Electro
 
 ## 配置说明（.env）
 
-开发环境读取项目根目录 `.env`；打包后读取可执行文件同级 `.env`（NSIS 安装版放在安装目录，解压 ZIP 版放在解压目录）。
+开发环境读取项目根目录 `.env`；Windows 安装版、ZIP 解压版和 macOS 读取用户数据目录中的 `.env`；Windows 单文件便携版读取便携 exe 同级 `.env`。安装版和解压版共享用户数据目录。旧安装目录中的 `.env` 如仍存在，首次启动时复制迁移，不删除原文件，也不覆盖数据目录中的文件。
 
 ```dotenv
 FTP_HOST=ftp.example.com
@@ -49,7 +49,9 @@ FTP_TLS_REJECT_UNAUTHORIZED=true
 DEPLOY_ENDPOINT=https://www.example.com/.ftppublisher/deploy.php
 DEPLOY_TOKEN="replace-with-random-token"
 WEB_URL=https://www.example.com/
-PUBLISH_RECORD_DIR=./historical
+CERT_DOMAIN=example.com
+ALIYUN_ACCESS_KEY_ID=
+ALIYUN_ACCESS_KEY_SECRET=
 ```
 
 规则：
@@ -62,6 +64,7 @@ PUBLISH_RECORD_DIR=./historical
 - `DEPLOY_ENDPOINT` 必须指向网站公网可访问的 `.ftppublisher/deploy.php`。
 - `DEPLOY_TOKEN` 至少 8 位；包含 `#` 时必须用引号包裹。部署接口和桌面端必须使用相同密钥。
 - `WEB_URL` 可选，填写真实站点的 HTTP/HTTPS 地址；连接成功后可从连接状态和发布成功结果直接打开。
+- `CERT_DOMAIN`、`ALIYUN_ACCESS_KEY_ID`、`ALIYUN_ACCESS_KEY_SECRET` 用于证书监控和阿里云操作；证书页保存时也会写入 `.env`。旧版本保存的域名和可解密凭证，在相应字段不存在时迁移，显式配置的字段不会覆盖。
 - 密码只读展示为 `***`，不会出现在日志、错误详情或发布记录中。
 
 ## 常用命令
@@ -77,9 +80,9 @@ npm run release:watch # 查看 GitHub Actions 构建状态
 
 `dist:win` 的 Windows 输出包括：
 
-- `内容发布工具-<version>-x64-setup.exe`：NSIS 安装版，可选择安装目录并创建桌面快捷方式。
-- `内容发布工具-<version>-x64.zip`：解压版。解压一次后直接运行目录中的 `内容发布工具.exe`，程序以该目录为工作目录。
-- `内容发布工具-<version>-x64-portable.exe`：单文件便携版，自解压后运行，可拷贝到任意位置。
+- `ContentPublisher-<version>-x64-setup.exe`：NSIS 安装版，可选择安装目录并创建桌面快捷方式。
+- `ContentPublisher-<version>-x64.zip`：解压版，解压后直接运行目录中的 `内容发布工具.exe`。
+- `ContentPublisher-<version>-x64-portable.exe`：单文件便携版，自解压后运行，可拷贝到任意位置。
 
 应用图标来自 `resources/icon.svg`，构建时转为 `icon.ico`（Windows）/ `icon.icns`（macOS）。
 
@@ -89,15 +92,16 @@ npm run release:watch # 查看 GitHub Actions 构建状态
 
 | 打包方式 | 是否带出厂配置 | 说明 |
 |---|---|---|
-| 本地 `npm run dist:win` / `dist:zip` | ✅ 带 | 构建时把项目根 `.env` 作为 `default.env` 打进包内，首次启动自动写成 `.env`，无需手动放置 |
-| GitHub Actions 打包 | ❌ 不带 | CI 环境无 `.env`，包内无 `default.env`，首次启动前需手动放置 `.env` |
+| 本地 `npm run dist:win` / `dist:zip` | 取决于项目根目录 | 构建时若存在 `.env` 则作为 `default.env` 打进包内，首次启动按需复制到数据目录 |
+| GitHub Actions 打包 | 可选 | 仅在配置 `BUILD_ENV` secret 时内置出厂配置，否则需手动放置 `.env` |
 
 **手动放置 .env 的位置**（内容参考 [.env.example](.env.example)）：
 
-- Windows：可执行文件同级目录（安装版在安装目录，解压版在解压目录，便携版在 portable exe 所在目录）。
+- Windows 安装版和解压版：`%APPDATA%` 下的应用用户数据目录；具体路径可在软件「设置」中查看，或在配置缺失提示中查看。
+- Windows 单文件便携版：portable exe 所在目录。
 - macOS：`~/Library/Application Support/内容发布工具/`（应用首次启动会自动创建该目录，也可直接放一份 .env 进去）。
 
-> ⚠️ **安全提示**：本地打包会把 `.env` 中的真实凭据（FTP 账号密码、部署密钥）随安装包一起分发。仅用于内部或可信环境；对外分发前请改用不含 `.env` 的 CI 打包，或预先替换为占位配置。
+> ⚠️ **安全提示**：`.env` 明文包含 FTP 密码、部署密钥和阿里云 AccessKey Secret，分发时应通过可信渠道并控制接收范围。将真实 `.env` 打入安装包也会暴露凭据，不要用于公开发布。旧版安装目录可能在安装新版本前被清理，升级前务必手动备份旧 `.env`。
 
 ## 使用流程
 
@@ -152,7 +156,7 @@ yundun-cert:DescribeDeploymentJobStatus
 yundun-cert:ListWorkerResource
 ```
 
-AccessKey Secret 由 Electron `safeStorage` 加密后保存在数据目录的 `certificate-monitor.json`，不通过状态接口返回，不写入 `.env` 或日志；该文件已排除于 Git。拷到其他电脑可能需要重新配置凭证。证书列表和详情接口不获取私钥内容。
+AccessKey 存放在 `.env`，Secret 为明文，不通过状态接口返回，也不写入日志；`.env` 已排除于 Git。旧版加密凭证可在本机解密且新字段均不存在时迁移，旧加密记录保留。证书列表和详情接口不获取私钥内容。
 
 运行中的申请、验证信息读取或部署可点击进度卡片右侧“中止”，立即停止本地等待，不必等云端请求返回。已发出的请求不保证撤回：迟到的结果会保存，后续步骤停止，在途请求未结束时不允许新任务覆盖。申请配置和提交前分别持久化阶段；响应丢失或历史申请结果不明时锁定该实例，不自动重复提交。若经过确认实例确未提交，可在“验证”中解除本地待核对标记；解除前会再次读取云端状态并提示延迟风险。定时监控不会自动申请或部署。
 

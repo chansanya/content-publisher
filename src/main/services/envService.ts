@@ -103,7 +103,7 @@ export function parseEnvFields(raw: Record<string, string>, baseDir: string, dat
 
 /** 只读加载 .env（不污染 process.env），缺失或非法时返回带具体字段的错误 */
 export function loadEnvConfig(baseDir: string, dataDir: string): EnvLoadResult {
-  const envPath = path.join(baseDir, '.env')
+  const envPath = path.join(dataDir, '.env')
   let text: string
   try {
     text = readFileSync(envPath, 'utf-8')
@@ -113,11 +113,11 @@ export function loadEnvConfig(baseDir: string, dataDir: string): EnvLoadResult {
       error: {
         code: 'ENV_FILE_MISSING',
         message: `未找到配置文件: ${envPath}`,
-        detail: '开发环境读取项目根目录 .env，打包后读取可执行文件同级 .env。可参考 .env.example 创建。'
+        detail: '请在数据目录创建 .env，可参考 .env.example。'
       }
     }
   }
-  return parseEnvFields(parseEnvText(text), baseDir, dataDir)
+  return parseEnvFields(parseEnvText(text), dataDir, dataDir)
 }
 
 /** 首次启动种子：baseDir 无 .env 时，用包内出厂默认值（default.env）写出一份，绝不覆盖已有配置 */

@@ -38,7 +38,19 @@ try {
     bundle: true,
     platform: 'node',
     format: 'cjs',
-    packages: 'external'
+    packages: 'external',
+    plugins: [{
+      name: 'mock-certificate-storage',
+      setup(builder) {
+        builder.onResolve({ filter: /^(electron|electron-store)$/ }, args => ({ path: args.path, namespace: 'certificate-test' }))
+        builder.onLoad({ filter: /.*/, namespace: 'certificate-test' }, args => ({
+          contents: args.path === 'electron'
+            ? "export const safeStorage = { isEncryptionAvailable: () => true, decryptString: value => value.toString() }"
+            : "export default class Store { constructor(options) { this.data = { ...options.defaults, ...globalThis.__certificateStoreFixture } } get(key) { return this.data[key] } set(key, value) { if (typeof key === 'object') Object.assign(this.data, key); else this.data[key] = value } delete(key) { delete this.data[key] } }",
+          loader: 'js'
+        }))
+      }
+    }]
   })
   const uiOutput = path.join(temporary, 'certificate-ui.test.cjs')
   await build({

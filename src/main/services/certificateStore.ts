@@ -10,6 +10,9 @@ import type {
 } from '@shared/types'
 import { ServiceError } from './errors'
 import { mergeApplicationAttempts, normalizeCertificateDomain, validateDeploymentResourceIds } from './certificatePolicy'
+import { readEnvFile, updateEnvFile } from './envFileService'
+import { existsSync } from 'node:fs'
+import path from 'node:path'
 
 interface CertificateStoreData {
   settings: CertificateMonitorSettings
@@ -37,7 +40,7 @@ const DEFAULT_AUTOMATION: CertificateAutomationRecord = {
 export class CertificateStore {
   private readonly store: Store<CertificateStoreData>
 
-  constructor(dataDir: string) {
+  constructor(private readonly dataDir: string) {
     this.store = new Store<CertificateStoreData>({
       name: 'certificate-monitor',
       cwd: dataDir,
@@ -48,6 +51,7 @@ export class CertificateStore {
         automation: DEFAULT_AUTOMATION
       }
     })
+    this.migrateLegacyConfig()
     const previous = this.store.get('automation')
     const retired = previous.mode === 'renewal' || previous.orderId || previous.applicationPending || ['applying', 'validating', 'issuing', 'ready'].includes(previous.state)
     if (retired) {
@@ -57,9 +61,29 @@ export class CertificateStore {
     }
   }
 
+  private migrateLegacyConfig(): void {
+    if (!existsSync(path.join(this.dataDir, '.env'))) return
+    try {
+      const env = readEnvFile(this.dataDir)
+      const changes: Record<string, string> = {}
+      const saved = this.store.get('settings')
+      if (!Object.hasOwn(env, 'CERT_DOMAIN') && saved.domain) changes.CERT_DOMAIN = saved.domain
+      const id = this.store.get('accessKeyId')
+      const secret = this.store.get('accessKeySecret')
+      if (!Object.hasOwn(env, 'ALIYUN_ACCESS_KEY_ID') && !Object.hasOwn(env, 'ALIYUN_ACCESS_KEY_SECRET') && id && secret && safeStorage.isEncryptionAvailable()) {
+        try {
+          changes.ALIYUN_ACCESS_KEY_ID = id
+          changes.ALIYUN_ACCESS_KEY_SECRET = safeStorage.decryptString(Buffer.from(secret, 'base64'))
+        } catch { console.error('[fp] [error] [certificate] 旧凭证解密失败，请在 .env 中重新配置') }
+      }
+      if (Object.keys(changes).length) updateEnvFile(this.dataDir, changes)
+    } catch { console.error('[fp] [error] [certificate] 旧证书配置迁移失败，请检查 .env 的读写权限') }
+  }
+
   getSettings(): CertificateMonitorSettings {
     const saved = this.store.get('settings') as CertificateMonitorSettings & { renewBeforeDays?: number }
-    return { enabled: saved.enabled ?? true, domain: saved.domain || '', checkHour: saved.checkHour ?? 7, warningDays: saved.warningDays ?? saved.renewBeforeDays ?? 7, deploymentResourceIds: saved.deploymentResourceIds ?? [] }
+    const domain = (readEnvFile(this.dataDir).CERT_DOMAIN || '').trim()
+    return { enabled: saved.enabled ?? true, domain, checkHour: saved.checkHour ?? 7, warningDays: saved.warningDays ?? saved.renewBeforeDays ?? 7, deploymentResourceIds: saved.deploymentResourceIds ?? [] }
   }
 
   saveSettings(settings: CertificateMonitorSettings): CertificateMonitorSettings {
@@ -79,6 +103,7 @@ export class CertificateStore {
       warningDays: settings.warningDays,
       deploymentResourceIds: validateDeploymentResourceIds(settings.deploymentResourceIds)
     }
+    updateEnvFile(this.dataDir, { CERT_DOMAIN: domain })
     this.store.set('settings', normalized)
     if (previous.domain !== domain) {
       this.store.delete('certificate')
@@ -88,11 +113,12 @@ export class CertificateStore {
   }
 
   credentialsConfigured(): boolean {
-    return Boolean(this.store.get('accessKeyId') && this.store.get('accessKeySecret'))
+    const env = readEnvFile(this.dataDir)
+    return Boolean(env.ALIYUN_ACCESS_KEY_ID?.trim() && env.ALIYUN_ACCESS_KEY_SECRET?.trim())
   }
 
   accessKeyIdMasked(): string {
-    const value = this.store.get('accessKeyId')
+    const value = (readEnvFile(this.dataDir).ALIYUN_ACCESS_KEY_ID || '').trim()
     if (!value) return ''
     if (value.length <= 8) return `${value.slice(0, 2)}****${value.slice(-2)}`
     return `${value.slice(0, 4)}****${value.slice(-4)}`
@@ -104,32 +130,21 @@ export class CertificateStore {
     if (!accessKeyId || !accessKeySecret) {
       throw new ServiceError('CERT_CREDENTIALS_INVALID', 'AccessKey ID 和 AccessKey Secret 不能为空')
     }
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new ServiceError('CERT_ENCRYPTION_UNAVAILABLE', '当前系统无法安全加密 AccessKey Secret')
-    }
-    this.store.set({ accessKeyId, accessKeySecret: safeStorage.encryptString(accessKeySecret).toString('base64') })
+    updateEnvFile(this.dataDir, { ALIYUN_ACCESS_KEY_ID: accessKeyId, ALIYUN_ACCESS_KEY_SECRET: accessKeySecret })
   }
 
   getCredentials(): CertificateCredentialInput {
-    const accessKeyId = this.store.get('accessKeyId')
-    const encrypted = this.store.get('accessKeySecret')
-    if (!accessKeyId || !encrypted) {
+    const env = readEnvFile(this.dataDir)
+    const accessKeyId = (env.ALIYUN_ACCESS_KEY_ID || '').trim()
+    const accessKeySecret = (env.ALIYUN_ACCESS_KEY_SECRET || '').trim()
+    if (!accessKeyId || !accessKeySecret) {
       throw new ServiceError('CERT_CREDENTIALS_MISSING', '尚未配置阿里云 AccessKey')
     }
-    if (!safeStorage.isEncryptionAvailable()) {
-      throw new ServiceError('CERT_ENCRYPTION_UNAVAILABLE', '当前系统无法解密 AccessKey Secret')
-    }
-    try {
-      return {
-        accessKeyId,
-        accessKeySecret: safeStorage.decryptString(Buffer.from(encrypted, 'base64'))
-      }
-    } catch {
-      throw new ServiceError('CERT_CREDENTIALS_DECRYPT_FAILED', 'AccessKey Secret 解密失败，请重新配置')
-    }
+    return { accessKeyId, accessKeySecret }
   }
 
   clearCredentials(): void {
+    updateEnvFile(this.dataDir, { ALIYUN_ACCESS_KEY_ID: '', ALIYUN_ACCESS_KEY_SECRET: '' })
     this.store.set('accessKeyId', '')
     this.store.set('accessKeySecret', '')
   }

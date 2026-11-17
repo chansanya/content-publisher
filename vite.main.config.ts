@@ -8,7 +8,7 @@ import { isAbsolute } from 'node:path'
 const external = (id: string): boolean =>
   !id.startsWith('.') && !id.startsWith('@shared') && !id.startsWith('@main') && !isAbsolute(id)
 
-// 把项目根 .env 收进包内作为出厂默认值（default.env），安装后首次启动若无 .env 则写出到 exe 同级
+// 把项目根 .env 收进包内作为出厂默认值（default.env），首次启动时按需写入数据目录
 const seedDefaultEnv = (): Plugin => ({
   name: 'seed-default-env',
   closeBundle() {

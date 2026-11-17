@@ -41,7 +41,7 @@ import { deployScriptPath } from '../appPaths'
 const STAGING_TTL_MS = 24 * 60 * 60 * 1000
 
 export interface PublishDeps {
-  /** .env 查找基准目录（开发 = 项目根，打包 = 可执行文件同级） */
+  /** 应用文件和旧配置的基准目录 */
   baseDir: () => string
   /** 数据目录（发布记录 / 本地代理 .web / 替换规则） */
   dataDir: () => string

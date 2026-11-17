@@ -1,10 +1,86 @@
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { test } from 'node:test'
 import { CertificateService, type AliyunCertificateApi, type CertificateServiceDeps } from '../src/main/services/certificateService'
 import { certificateCoversDomain, mergeApplicationAttempts, nextCertificateCheck, normalizeCertificateDomain, validateDeploymentResourceIds } from '../src/main/services/certificatePolicy'
 import type { CertificateApplicationAttempt, CertificateApplicationDetail, CertificateAutomationRecord, CertificateInstanceSummary, CertificateMonitorSettings, CertificateProgressEvent, CertificateSnapshot } from '../src/shared/types'
+import { migrateEnvFile, readEnvFile, updateEnvFile } from '../src/main/services/envFileService'
+import { loadEnvConfig } from '../src/main/services/envService'
+import { CertificateStore } from '../src/main/services/certificateStore'
+
+test('legacy certificate configuration migrates only absent env keys and reads updates from env', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'publisher-cert-env-test-'))
+  try {
+    writeFileSync(path.join(dir, '.env'), 'FTP_HOST=host\n')
+    ;(globalThis as any).__certificateStoreFixture = {
+      settings: { enabled: true, domain: 'old.example.com', checkHour: 7, warningDays: 7 },
+      accessKeyId: 'old-id', accessKeySecret: Buffer.from('old-secret').toString('base64')
+    }
+    const store = new CertificateStore(dir)
+    assert.equal(store.getSettings().domain, 'old.example.com')
+    assert.deepEqual(store.getCredentials(), { accessKeyId: 'old-id', accessKeySecret: 'old-secret' })
+    updateEnvFile(dir, { CERT_DOMAIN: 'new.example.com', ALIYUN_ACCESS_KEY_ID: 'new-id', ALIYUN_ACCESS_KEY_SECRET: 'new-secret' })
+    assert.equal(store.getSettings().domain, 'new.example.com')
+    assert.deepEqual(store.getCredentials(), { accessKeyId: 'new-id', accessKeySecret: 'new-secret' })
+    store.clearCredentials()
+    assert.equal(store.credentialsConfigured(), false)
+    assert.equal(new CertificateStore(dir).credentialsConfigured(), false)
+  } finally {
+    delete (globalThis as any).__certificateStoreFixture
+    rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('env migration preserves the original and never overwrites an existing destination', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'publisher-env-test-'))
+  try {
+    const oldDir = path.join(dir, 'old')
+    const dataDir = path.join(dir, 'data')
+    mkdirSync(oldDir)
+    writeFileSync(path.join(oldDir, '.env'), 'FTP_HOST=old\n')
+    assert.equal(migrateEnvFile(oldDir, dataDir), true)
+    assert.equal(readEnvFile(oldDir).FTP_HOST, 'old')
+    writeFileSync(path.join(dataDir, '.env'), 'FTP_HOST=new\n')
+    assert.equal(migrateEnvFile(oldDir, dataDir), false)
+    assert.equal(readEnvFile(dataDir).FTP_HOST, 'new')
+    assert.equal(migrateEnvFile(dataDir, dataDir), false)
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('certificate env changes preserve other configuration and replace duplicate keys', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'publisher-env-test-'))
+  try {
+    writeFileSync(path.join(dir, '.env'), '# keep\r\nFTP_HOST=host\r\nCERT_DOMAIN=old\r\nexport CERT_DOMAIN=duplicate\r\n')
+    updateEnvFile(dir, { CERT_DOMAIN: 'example.com', ALIYUN_ACCESS_KEY_ID: 'test-id', ALIYUN_ACCESS_KEY_SECRET: 'test#secret' })
+    const text = readFileSync(path.join(dir, '.env'), 'utf8')
+    assert.ok(text.includes('# keep\r\nFTP_HOST=host'))
+    assert.equal((text.match(/CERT_DOMAIN=/g) || []).length, 1)
+    assert.equal(readEnvFile(dir).ALIYUN_ACCESS_KEY_SECRET, 'test#secret')
+    updateEnvFile(dir, { ALIYUN_ACCESS_KEY_ID: '', ALIYUN_ACCESS_KEY_SECRET: '' })
+    assert.equal(readEnvFile(dir).CERT_DOMAIN, 'example.com')
+    assert.equal(readEnvFile(dir).ALIYUN_ACCESS_KEY_SECRET, '')
+    assert.throws(() => updateEnvFile(dir, { ALIYUN_ACCESS_KEY_SECRET: 'bad\nvalue' }))
+    assert.equal(readEnvFile(dir).ALIYUN_ACCESS_KEY_SECRET, '')
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
+
+test('FTP settings are read from the data directory rather than the installation directory', () => {
+  const dir = mkdtempSync(path.join(tmpdir(), 'publisher-env-test-'))
+  try {
+    const dataDir = path.join(dir, 'data')
+    mkdirSync(dataDir)
+    writeFileSync(path.join(dir, '.env'), 'FTP_HOST=old\n')
+    writeFileSync(path.join(dataDir, '.env'), 'FTP_HOST=new\nFTP_USER=user\nFTP_PASSWORD=secret\nFTP_REMOTE_ROOT=/site\n')
+    const result = loadEnvConfig(dir, dataDir)
+    assert.equal(result.ok, true)
+    if (result.ok) {
+      assert.equal(result.data.host, 'new')
+      assert.equal(result.data.envPath, path.join(dataDir, '.env'))
+    }
+  } finally { rmSync(dir, { recursive: true, force: true }) }
+})
 
 const oldExpiry = new Date(Date.now() + 5 * 86400000).toISOString()
 const newExpiry = new Date(Date.now() + 90 * 86400000).toISOString()

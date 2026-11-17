@@ -359,7 +359,7 @@ onUnmounted(() => { if (clockTimer) clearInterval(clockTimer) })
           </el-form-item>
           <div class="button-row">
             <el-button type="primary" :disabled="!credentials.accessKeyId || !credentials.accessKeySecret" @click="saveCredentials">
-              <template #icon><Save :size="15" /></template>加密保存
+              <template #icon><Save :size="15" /></template>保存到配置文件
             </el-button>
             <el-button v-if="certificate.status?.credentialsConfigured" type="danger" text @click="certificate.clearCredentials()">
               <template #icon><Trash2 :size="15" /></template>清除凭证

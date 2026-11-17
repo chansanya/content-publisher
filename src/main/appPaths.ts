@@ -2,7 +2,7 @@ import path from 'node:path'
 import { app } from 'electron'
 
 /**
- * .env 查找基准目录：
+ * 应用文件及旧配置查找基准目录：
  * - 开发环境：项目根目录（app.getAppPath()）
  * - Windows 安装版：安装目录（exe 同级）
  * - Windows 便携版：electron-builder 通过 PORTABLE_EXECUTABLE_DIR 指向 portable exe 真实所在目录
@@ -15,7 +15,7 @@ export function resolveBaseDir(): string {
 }
 
 /**
- * 数据目录（发布记录/日志/本地代理/替换规则）：
+ * 数据目录（.env/发布记录/日志/本地代理/替换规则）：
  * - 开发环境：项目根目录
  * - Windows 便携版：PORTABLE_EXECUTABLE_DIR，数据随 exe 走，不与其他版本共享
  * - 安装版/解压版/macOS：userData（共享，升级不丢）
