@@ -3,6 +3,7 @@ dist/
 release/
 .env
 .historical/
+historical/
 *.log
 .DS_Store
 Thumbs.db
@@ -10,3 +11,6 @@ Thumbs.db
 publish-replacements.json
 certificate-monitor.json
 plugins/**/mailer-config.php
+docs/.vuepress/.temp/
+docs/.vuepress/.cache/
+docs/.vuepress/dist/
